@@ -1,10 +1,11 @@
 """Signal detection: volume spike, price jump, large trade, fresh wallet,
-category tagging. All pure functions, no network."""
+thin-market bonus, category tagging, baseline bookkeeping. Pure functions,
+no network."""
 
-import tipoff
 from tipoff import (
     CFG, categorize, detect_large_trades, detect_price_jump,
-    detect_volume_spike, is_fresh_wallet, observe_market,
+    detect_volume_spike, fresh_wallet_signal, is_fresh_wallet,
+    observe_market, thin_market_signal,
 )
 
 NOW = 1_780_000_000.0
@@ -23,15 +24,21 @@ def make_obs(rate=100.0, base_mean=100.0, base_var=100.0, n=20,
 # --- volume spike ---------------------------------------------------------
 
 def test_volume_spike_fires_on_10x_baseline():
-    obs = make_obs(rate=1000.0, base_mean=100.0, base_var=100.0)
-    sig = detect_volume_spike(obs)
+    sig = detect_volume_spike(make_obs(rate=1000.0, base_mean=100.0))
     assert sig is not None
     assert sig["type"] == "volume_spike"
-    assert sig["points"] >= 25
+    assert "10x baseline" in sig["desc"]
+    assert sig["points"] == 35
 
 
-def test_volume_spike_silent_on_normal_volume():
-    assert detect_volume_spike(make_obs(rate=120.0)) is None
+def test_volume_spike_fires_at_3x_threshold():
+    sig = detect_volume_spike(make_obs(rate=900.0, base_mean=300.0))
+    assert sig is not None
+    assert sig["points"] == 18
+
+
+def test_volume_spike_silent_below_3x():
+    assert detect_volume_spike(make_obs(rate=250.0, base_mean=100.0)) is None
 
 
 def test_volume_spike_needs_warmup_history():
@@ -40,9 +47,13 @@ def test_volume_spike_needs_warmup_history():
 
 
 def test_volume_spike_ignores_dust_markets():
-    # 50x baseline but only 100 contracts of absolute delta: noise.
-    obs = make_obs(rate=100.0, base_mean=2.0, base_var=1.0)
+    # 50x baseline but only 100 units of absolute delta: noise.
+    obs = make_obs(rate=100.0, base_mean=2.0)
     assert detect_volume_spike(obs) is None
+
+
+def test_volume_spike_dead_baseline_guard():
+    assert detect_volume_spike(make_obs(rate=1000.0, base_mean=0.0)) is None
 
 
 def test_volume_spike_skips_stale_gap():
@@ -56,11 +67,11 @@ def test_volume_spike_skips_first_observation():
 
 # --- price jump ------------------------------------------------------------
 
-def test_price_jump_fires_on_big_move():
-    sig = detect_price_jump(make_obs(dp=0.12), hours_to_close=100.0)
+def test_price_jump_fires_on_6c_move():
+    sig = detect_price_jump(make_obs(dp=0.06), hours_to_close=100.0)
     assert sig is not None
     assert sig["direction"] == 1
-    assert "+12c" in sig["desc"]
+    assert "+6c" in sig["desc"]
 
 
 def test_price_jump_downward_direction():
@@ -68,13 +79,19 @@ def test_price_jump_downward_direction():
     assert sig is not None and sig["direction"] == -1
 
 
-def test_price_jump_silent_on_small_move():
+def test_price_jump_silent_below_5c():
     assert detect_price_jump(make_obs(dp=0.03), hours_to_close=100.0) is None
 
 
 def test_price_jump_scheduled_news_proxy():
     # Same jump, but the market resolves in 2h: presumed event-driven.
     assert detect_price_jump(make_obs(dp=0.12), hours_to_close=2.0) is None
+
+
+def test_price_jump_phantom_guard_no_volume_behind_it():
+    # 12c "move" with zero traded volume = a re-quoted book, not news.
+    obs = make_obs(dp=0.12, rate=0.0)
+    assert detect_price_jump(obs, hours_to_close=100.0) is None
 
 
 def test_price_jump_respects_market_chop():
@@ -95,11 +112,28 @@ def trade(size, price, side="BUY", idx=0, ts=NOW, wallet="0xabc"):
             "timestamp": ts, "proxyWallet": wallet}
 
 
-def test_large_trade_fires_and_reports_notional():
+def test_large_trade_absolute_path():
     sig = detect_large_trades([trade(20000, 0.50)], since_ts=NOW - 3600)
     assert sig is not None
     assert sig["notional"] == 10000
     assert sig["direction"] == 1  # bought YES
+
+
+def test_large_trade_relative_path_catches_small_market_whale():
+    # everyone bets ~$100 here; a $700 order is 7x typical -> fires even
+    # though it's far below the absolute $2k floor
+    trades = [trade(200, 0.50, ts=NOW - 9999) for _ in range(10)]
+    trades.append(trade(1400, 0.50))
+    sig = detect_large_trades(trades, since_ts=NOW - 3600)
+    assert sig is not None
+    assert "7x typical" in sig["desc"]
+
+
+def test_large_trade_relative_path_has_dust_floor():
+    # 7x typical but only $150: 5x of dust is still dust
+    trades = [trade(40, 0.50, ts=NOW - 9999) for _ in range(10)]
+    trades.append(trade(300, 0.50))
+    assert detect_large_trades(trades, since_ts=NOW - 3600) is None
 
 
 def test_large_trade_sell_of_yes_is_bearish():
@@ -139,8 +173,9 @@ def test_fresh_wallet_young_short_history():
     assert is_fresh_wallet(rows, fetch_limit=50, ts=NOW)
 
 
-def test_fresh_wallet_old_account_rejected():
-    rows = [activity(1), activity(100)]
+def test_fresh_wallet_week_old_account_rejected():
+    # 3-day cutoff: a week-old wallet is no longer "fresh"
+    rows = [activity(1), activity(7)]
     assert not is_fresh_wallet(rows, fetch_limit=50, ts=NOW)
 
 
@@ -152,6 +187,22 @@ def test_fresh_wallet_full_page_means_veteran():
 
 def test_fresh_wallet_empty_history_rejected():
     assert not is_fresh_wallet([], fetch_limit=50, ts=NOW)
+
+
+def test_fresh_wallet_signal_scales_with_size():
+    assert fresh_wallet_signal(1500)["points"] == 15
+    assert fresh_wallet_signal(8000)["points"] == 25
+
+
+# --- thin market bonus --------------------------------------------------------
+
+def test_thin_market_bonus_below_threshold():
+    sig = thin_market_signal(3000.0)
+    assert sig is not None and sig["points"] == 10
+
+
+def test_thin_market_no_bonus_for_liquid_markets():
+    assert thin_market_signal(CFG["THIN_MARKET_VOL24"]) is None
 
 
 # --- baseline bookkeeping (observe_market) ----------------------------------
@@ -184,6 +235,23 @@ def test_observe_market_baseline_stats_are_pre_update():
     # baseline mean handed to detectors reflects history, not the new point
     assert obs["base_mean"] > 0
     assert obs["n"] == 9
+
+
+def test_observe_market_winsorizes_spikes_out_of_baseline():
+    # steady 100/h for 12h, then a 100x burst: the burst must be reported in
+    # obs at full size but folded into the EWMA capped, so the baseline
+    # doesn't explode and mask the follow-through hours.
+    entry, _ = observe_market(None, market(vol=0.0), NOW)
+    vol = 0.0
+    for i in range(1, 13):
+        vol += 100.0
+        entry, _ = observe_market(entry, market(vol=vol), NOW + i * 3600)
+    mean_before = entry["m"]
+    vol += 10_000.0
+    entry, obs = observe_market(entry, market(vol=vol), NOW + 13 * 3600)
+    assert obs["rate"] == 10_000.0  # detector sees the real burst
+    cap = mean_before * CFG["BASELINE_WINSOR_MULT"]
+    assert entry["m"] <= mean_before + CFG["EWMA_ALPHA"] * (cap - mean_before) + 1e-9
 
 
 def test_observe_market_move_window_capped():

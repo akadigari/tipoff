@@ -36,68 +36,90 @@ Each hourly run snapshots every tracked market (≥1,000 units of 24h volume,
 top 1,200 per platform) and folds the snapshot into a compact online baseline
 (EWMA of hourly volume rate + a window of recent price moves) stored in
 `state/baselines.json`. A market needs **8 observations (~8 hours) of warm-up**
-before spike detection goes live on it, so the first day is quiet by design.
+before spike detection goes live on it, so the first hours are quiet by design.
 
-## Signals
+The baseline is **winsorized**: a one-hour burst is folded into the EWMA
+capped at 4× the current mean, so a spike can't inflate its own baseline and
+mask the follow-through hours — exactly the hours where informed money keeps
+accumulating.
 
-All thresholds are pre-registered in the `CFG` block at the top of
-[tipoff.py](tipoff.py) — no tuning after the fact.
+## Configuration
 
-1. **Volume spike** — this hour's volume rate is ≥3 standard deviations above
-   the market's *own* baseline (and the absolute delta is big enough to
-   matter; a 50× spike on a dust market is noise).
-2. **Price jump** — a move of ≥8¢ within ≤3h that's also ≥3× the market's
-   median recent move. *Scheduled-news proxy:* jumps within 12h of resolution
-   don't count — that close to the end, a move is usually the event itself
-   happening, not informed money arriving early.
-3. **Large on-chain trade** (Polymarket) — a single trade ≥$5,000 notional
-   since the last snapshot.
-4. **Fresh wallet loading up** (Polymarket) — the large trade came from a
-   wallet whose entire visible history is less than a week old. Classic
-   "new wallet funded for one opinion" pattern.
+**Every threshold lives in [config.py](config.py)** — one file, commented,
+grouped by purpose. Any value can also be overridden per-run with a
+`TIPOFF_`-prefixed env var (e.g. `TIPOFF_ALERT_SCORE=50`). Tune after
+reviewing the calibration-week logs, not after a single bad beat.
 
-Signal points sum to a 0–100 score; alerts require **score ≥60**. No single
-signal can reach 60 alone — an alert always means at least two independent
-things fired (e.g. volume spike + price jump, or price jump + large trade).
-On-chain checks only run on markets that already look anomalous, keeping the
-API budget to roughly 75 requests per cycle.
+## Signals (balanced middle-ground defaults)
+
+| Signal | Fires when | Max points |
+|---|---|---|
+| Volume spike | this hour's rate ≥ **3× the market's own baseline**, and the absolute delta is big enough to matter (dust guard) | 35 |
+| Price jump | move ≥ **5¢** within ≤3h, ≥3× this market's median recent move, **backed by real volume** (phantom guard: a re-quoted book with no trades behind it doesn't count) | 35 |
+| Large on-chain trade (Polymarket) | single trade ≥ **$2k**, *or* ≥ **5× this market's own median trade size** (floor $500 — 5× of dust is still dust) | 30 |
+| Fresh wallet (Polymarket) | the big trade came from a wallet whose entire visible history is **< 3 days old**, betting ≥ $1k (+bonus ≥ $5k) | 25 |
+| Thin-market bonus | on-chain flow in a market doing < $10k/24h — big bets in obscure markets are the classic insider footprint | 10 |
+| Cross-platform confirmation | the same story is moving on *both* venues this cycle (title-matched, with a number veto so different strikes never merge) | 10 |
+
+Guards that keep the jump signal honest: a **scheduled-news proxy** (jumps
+within 12h of resolution are presumed to be the event itself happening, not
+early money) and the phantom-volume guard above.
+
+Points sum to a 0–100 score. **No single signal can reach the alert threshold
+alone** — even in calibration mode an alert always means at least two
+independent things fired. On-chain checks only run on markets that already
+look anomalous, keeping the API budget to ~75 requests per cycle.
 
 ## The followability gate — why it exists
 
 A real signal you can't act on at a fair price is trivia, not edge. The core
-failure mode of "follow the smart money" is **being the exit liquidity**: by
-the time the anomaly is visible, the price has already absorbed the
-information. So every scored signal must pass ALL of these before it may
-alert:
+failure mode of "follow the smart money" is **being the exit liquidity**. So
+every scored signal must pass ALL of these before it may alert:
 
 | Check | Threshold | Why it matters |
 |---|---|---|
+| Still catchable | entry ≤ **3¢ above the signal price** | if the ask has already run away, your fill won't resemble what fired |
 | Price not fully moved | entry ≤ 85¢ | above this, the move already happened — you're late |
-| Not a longshot | entry ≥ 5¢ | sub-5¢ churn is lottery-ticket noise, not an information lag |
-| Spread | ≤ 5¢ | wide spread = your fill won't resemble the signal price |
+| Not a longshot | entry ≥ 5¢ | sub-5¢ churn is lottery-ticket noise |
 | Depth | ≥ $500 at the touch (Kalshi) / ≥ $2,000 book liquidity (Polymarket, proxy) | must be able to fill a small size |
-| Resolves slow enough | ≥ 6h out | if it resolves now, there is no lag window to exploit |
+| Resolves slow enough | **> 24h out** | if it resolves now, there is no lag window to exploit |
 | Resolves fast enough | ≤ 90 days | capital dead for months makes CLV meaningless |
 
-Signals that score high but fail the gate are logged to
-[ledger/watch_log.csv](ledger/watch_log.csv) as `WATCH` with the exact reasons
-— useful for later analysis of what the gate is costing.
+Signals that fire but fail the gate are logged to
+[ledger/watch_log.csv](ledger/watch_log.csv) as `WATCH` **with the exact
+reasons** — the raw material for tuning.
 
-Extra alert hygiene: max 5 alerts per run (overflow → watch log), a 48h
-per-market re-alert cooldown, and no re-alerting a market you already "hold"
-in the paper ledger.
+One alert per story: multiple legs of the same event spiking on one news item
+are deduped to the top scorer, and a cross-platform twin of an already-sent
+alert is dropped (its confirmation is already priced into the kept one's
+score). Plus: max alerts per run, a per-market re-alert cooldown, and no
+re-alerting a market already "held" in the paper ledger.
 
-## Telegram alerts
+## Calibration week
 
-On a strong + followable signal you get one message, built to be skimmed on a
-phone:
+For the **first 7 days after deployment** Tipoff runs looser on purpose:
+
+- alert threshold drops (40 vs 55), more alerts allowed per run, shorter
+  cooldown — you *want* borderline stuff hitting your phone this week;
+- every alert is tagged `mode=calib` in the ledger and **excluded from the
+  pre-registered verdict stats** (they were caught with different thresholds;
+  mixing them in would bias the experiment);
+- the watch log records everything that fired-but-filtered, with reasons.
+
+At the end of the week, skim `ledger/watch_log.csv` and the calib alerts:
+if good stuff died at the gate, loosen that gate value in config.py; if junk
+alerted, raise the relevant signal threshold. Then let normal mode run.
+
+## Telegram
+
+### Alerts
 
 ```
 🚨🚨 ALERT!!! INSIDER TRADING SCOOP 🚨🚨
 
 📍 Will the Fed cut rates in September?
    [kalshi · KXFED-25SEP-C]
-🔔 Signal: volume spike (12x baseline, z=4.1) + price jump +9c in 1.0h
+🔔 Signal: volume spike (12x baseline) + price jump +9c in 1.0h
 💵 Price: 62c — buy YES
 🏷 Category: politics
 📐 Suggested size: $50 (paper)
@@ -105,14 +127,26 @@ phone:
 ⏳ Window open — verify + move.
 ```
 
-Silence means nothing fired — the bot does not send heartbeats.
+### Daily still-alive ping
+
+Once a day (targeting 13:00 UTC ≈ 9am ET) you get one short summary even when
+nothing fired, so silence never means "maybe it's broken":
+
+```
+🟢 Tipoff daily check-in — running fine
+Last 24h: 24 scans · 1,654 markets · 0 alerts · 7 watches
+All quiet — nothing strong + followable fired.
+📏 calibration week: day 3/7 — running loose, review the watch log
+```
+
+No ping two days in a row = actually go check the Actions tab.
 
 ## Paper ledger + CLV grading
 
 Every alert is appended to [ledger/ledger.csv](ledger/ledger.csv) with the
 price you'd have paid (the ask for the alerted side). Each later run refreshes
-the market's current price (`last_price`) while the position is open; when the
-market resolves, the row is graded:
+the market's current price while the position is open; when the market
+resolves, the row is graded:
 
 - **ROI** — per dollar staked: `(1 − entry)/entry` on a win, `−1` on a loss.
 - **CLV (closing-line value)** — `final observed price − entry price`, in
@@ -126,7 +160,8 @@ market resolves, the row is graded:
 ### How to read the per-category verdict
 
 [ledger/REPORT.md](ledger/REPORT.md) is regenerated every run — one row per
-category (entertainment / politics / sports / crypto / other) plus `ALL`:
+category (entertainment / politics / sports / crypto / other) plus `ALL`.
+Calibration-week alerts are excluded from these stats.
 
 | Verdict | Pre-registered rule | Meaning |
 |---|---|---|
@@ -147,15 +182,14 @@ be a publishable finding — and exactly what this tool is for.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt pytest
-pytest                          # 60+ unit tests, no network needed
+pytest                          # 100+ unit tests, no network needed
 
 cp .env.example .env            # then edit; .env is gitignored
 python tipoff.py                # one scan cycle
 ```
 
 With `TIPOFF_DRY_RUN=1` (default in `.env.example`), alerts are printed
-instead of sent. Note the warm-up: signals only fire after a market has ~8
-snapshots of history, so single local runs will mostly just build baseline.
+instead of sent.
 
 ### On GitHub Actions
 
@@ -194,11 +228,12 @@ workflow environment.
 
 ```
 tipoff.py                    the scanner — one invocation = one cycle
-tests/                       signal, gate, telegram, ledger/CLV tests
+config.py                    ALL thresholds, commented — the only file to tune
+tests/                       signal, gate, dedup, telegram, ledger/CLV tests
 .github/workflows/tipoff.yml hourly cron + ledger commit-back
 state/baselines.json         per-market EWMA baselines (bot-committed)
 ledger/ledger.csv            every alert, graded on resolution
-ledger/watch_log.csv         signals that fired but failed the gate
+ledger/watch_log.csv         signals that fired but were filtered, with reasons
 ledger/REPORT.md             per-category CLV verdict (regenerated each run)
 ```
 
@@ -211,6 +246,8 @@ ledger/REPORT.md             per-category CLV verdict (regenerated each run)
   Kalshi depth is the real size at the inside quote.
 - **Scheduled-news detection is a heuristic** (time-to-resolution window). A
   jump on a pre-announced poll release >12h before close can still fire.
+- **Cross-platform matching is conservative** (token similarity + number
+  veto); it will miss some twins rather than merge different markets.
 - **Paper fills are optimistic**: entry at the displayed ask, no fees, no
   slippage beyond the spread. Real following would do somewhat worse — so a
   verdict that's only barely FOLLOWABLE should be treated as MARGINAL.

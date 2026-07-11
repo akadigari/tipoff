@@ -1,6 +1,7 @@
-"""Grading math (ROI, CLV) and the pre-registered per-category verdict."""
+"""Grading math (ROI, CLV), calibration-row exclusion, and the
+pre-registered per-category verdict."""
 
-from tipoff import compute_report, grade_row, side_price, verdict
+from tipoff import compute_report, grade_row, side_price, verdict, verdict_rows
 
 NOW = 1_780_000_000.0
 
@@ -10,9 +11,9 @@ def row(**overrides):
         "id": "1", "ts": "2026-07-10T12:00:00Z", "platform": "kalshi",
         "market_id": "T", "title": "t", "category": "politics", "side": "yes",
         "entry_price": "0.6000", "stake_usd": "25", "score": "70",
-        "signals": "s", "hours_to_close": "48.0", "status": "open",
-        "last_price": "0.6000", "resolved_ts": "", "result": "",
-        "roi": "", "clv": "",
+        "signals": "s", "hours_to_close": "48.0", "mode": "normal",
+        "status": "open", "last_price": "0.6000", "resolved_ts": "",
+        "result": "", "roi": "", "clv": "",
     }
     base.update(overrides)
     return base
@@ -86,6 +87,19 @@ def test_verdict_marginal_thin_clv():
 def test_verdict_positive_roi_but_no_clv_is_not_followable():
     # lucky wins without line movement = not a repeatable edge
     assert verdict(25, avg_clv=-0.01, avg_roi=0.10).startswith("NOT FOLLOWABLE")
+
+
+# --- calibration exclusion --------------------------------------------------------
+
+def test_calibration_rows_excluded_from_verdict():
+    rows = [row(mode="calib"), row(mode="calib"), row(mode="normal")]
+    assert len(verdict_rows(rows)) == 1
+
+
+def test_rows_without_mode_column_count_as_normal():
+    legacy = row()
+    del legacy["mode"]
+    assert len(verdict_rows([legacy])) == 1
 
 
 # --- per-category report ---------------------------------------------------------

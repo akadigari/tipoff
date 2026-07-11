@@ -7,29 +7,38 @@ GitHub Actions cron). It never places orders. It:
 
   1. Pulls open markets from Kalshi (trade-api/v2) and Polymarket (Gamma +
      on-chain data-api).
-  2. Compares each market against its own rolling baseline (EWMA of hourly
-     volume rate + recent price moves, persisted in state/baselines.json).
+  2. Compares each market against its own rolling baseline (winsorized EWMA
+     of hourly volume rate + recent price moves, persisted in
+     state/baselines.json).
   3. Flags informed-money signals:
-        - volume spike vs the market's own baseline
-        - sudden price jump (with a scheduled-news proxy: ignore jumps close
-          to resolution, when moves are usually just the event happening)
-        - (Polymarket, on-chain) unusually large trade
+        - volume spike vs the market's own baseline (>= ~3x)
+        - sudden price jump (>= ~5c) backed by real volume, with a
+          scheduled-news proxy (jumps near resolution don't count)
+        - (Polymarket, on-chain) unusually large trade — absolute ($) or
+          relative (x the market's own median trade size)
         - (Polymarket, on-chain) fresh wallet loading up
-  4. Runs a FOLLOWABILITY GATE: price not already fully moved, enough depth
-     to fill a small size, spread tight enough, and a slow-enough-resolving
-     market that a lag window matters. Gate fail -> logged as WATCH, no alert.
+        - context bonuses: thin market + on-chain flow ("insider score"),
+          and the same story moving on both platforms at once
+  4. Runs a FOLLOWABILITY GATE: price still catchable (entry within ~3c of
+     the signal), not already fully moved, enough depth for a small size,
+     and resolution >24h out so a lag window exists. Gate fail -> WATCH log.
   5. Scores signals; strong + followable -> Telegram alert + paper-ledger
-     entry. The ledger is graded on resolution (win/loss, ROI, and
-     closing-line value) per category, so the data answers: "is any niche
-     actually followable, or am I always late?"
+     entry, graded on resolution (win/loss, ROI, closing-line value) per
+     category.
 
-Honest framing: this is a paper-testing research tool. It detects/follows
-informed money in public market data; it does not place trades and it does
-not involve trading on non-public information.
+Operational extras:
+  - CALIBRATION WEEK: the first CALIB_DAYS after deployment run with looser
+    alert thresholds and everything logged; those alerts are tagged
+    mode=calib and excluded from the pre-registered verdict.
+  - DAILY PING: one short Telegram summary a day ("scanned N, X alerts,
+    Y watches") so silence never means "maybe it's broken".
 
-Secrets: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID come from the environment
-(GitHub Actions secrets, or a local .env which is gitignored). Nothing is
-ever hard-coded here.
+Honest framing: paper-testing research tool. It detects/follows informed
+money in public market data; it does not place trades and it does not
+involve trading on non-public information.
+
+All thresholds live in config.py. Secrets (TELEGRAM_BOT_TOKEN,
+TELEGRAM_CHAT_ID) come only from the environment / GitHub Actions secrets.
 """
 
 from __future__ import annotations
@@ -46,8 +55,10 @@ from pathlib import Path
 
 import requests
 
+from config import CFG
+
 # ---------------------------------------------------------------------------
-# Configuration (every threshold is pre-registered here, env-overridable)
+# Paths + constants
 # ---------------------------------------------------------------------------
 
 ROOT = Path(__file__).resolve().parent
@@ -60,78 +71,17 @@ KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2"
 GAMMA_BASE = "https://gamma-api.polymarket.com"
 DATA_API_BASE = "https://data-api.polymarket.com"
 
-
-def _env_num(name: str, default: float) -> float:
-    try:
-        return float(os.environ.get(name, default))
-    except ValueError:
-        return default
-
-
-CFG = {
-    # --- universe filters (what gets baseline-tracked) ---
-    "KALSHI_MIN_VOL24": _env_num("TIPOFF_KALSHI_MIN_VOL24", 1000),   # contracts/24h
-    "POLY_MIN_VOL24": _env_num("TIPOFF_POLY_MIN_VOL24", 1000),       # USD/24h
-    "MAX_TRACKED_PER_PLATFORM": int(_env_num("TIPOFF_MAX_TRACKED", 1200)),
-    "KALSHI_MAX_PAGES": int(_env_num("TIPOFF_KALSHI_PAGES", 25)),
-    "POLY_PAGES": int(_env_num("TIPOFF_POLY_PAGES", 8)),  # x100 markets (Gamma
-                                                          # caps limit at 100)
-
-    # --- baseline (EWMA) ---
-    "EWMA_ALPHA": 0.15,          # weight of the newest observation
-    "MIN_OBS": 8,                # observations before spike detection is live
-    "MAX_MOVE_WINDOW": 12,       # recent |price moves| kept for jump baseline
-    "MAX_GAP_HOURS": 6.0,        # snapshot gap beyond which signals are skipped
-    "STALE_PRUNE_HOURS": 72.0,   # drop markets not seen for this long
-
-    # --- signal thresholds ---
-    "VOL_SPIKE_Z": 3.0,          # hourly volume rate z-score to fire
-    "VOL_SPIKE_MIN_ABS": 500.0,  # min volume delta (contracts/USD) to fire
-    "PRICE_JUMP_MIN": 0.08,      # min |move| since last snapshot (8 cents)
-    "PRICE_JUMP_MED_MULT": 3.0,  # and >= this multiple of median recent move
-    "PRICE_JUMP_MAX_AGE_H": 3.0, # jump must be measured over <= this window
-    "SCHEDULED_NEWS_MIN_H": 12.0,# jump within this many hours of close is
-                                 # presumed scheduled-news / event-driven
-    "LARGE_TRADE_USD": 5000.0,   # single on-chain trade notional to flag
-    "FRESH_WALLET_TRADE_USD": 2000.0,  # min trade size to bother profiling
-    "FRESH_WALLET_MAX_AGE_D": 7.0,     # wallet first seen within N days
-    "FRESH_WALLET_ACTIVITY_LIMIT": 50, # rows fetched; fewer => whole history
-
-    # --- API budget per run ---
-    "MAX_TRADE_FETCHES": 40,
-    "MAX_WALLET_LOOKUPS": 10,
-
-    # --- followability gate ---
-    "GATE_MAX_PRICE": 0.85,      # entry above this = move already happened
-    "GATE_MIN_PRICE": 0.05,      # below this = longshot noise, not a lag play
-    "GATE_MAX_SPREAD": 0.05,     # wider than 5c = can't fill near the signal
-    "GATE_MIN_DEPTH_USD": 500.0, # visible size at the touch (Kalshi)
-    "GATE_MIN_LIQUIDITY_USD": 2000.0,  # book liquidity proxy (Polymarket)
-    "GATE_MIN_HOURS_TO_CLOSE": 6.0,    # resolves sooner = no lag window
-    "GATE_MAX_DAYS_TO_CLOSE": 90.0,    # resolves later = capital dead too long
-
-    # --- alerting ---
-    "ALERT_SCORE": 60,           # min combined score to alert
-    "REALERT_COOLDOWN_H": 48.0,  # per-market cooldown between alerts
-    "MAX_ALERTS_PER_RUN": 5,     # excess goes to the watch log
-    "PAPER_STAKE_BASE": 25.0,    # suggested paper size ($)
-
-    # --- misc ---
-    "HTTP_TIMEOUT": 20,
-    "WATCH_LOG_MAX_ROWS": 5000,
-}
-
 CATEGORIES = ("entertainment", "politics", "sports", "crypto", "other")
 
 LEDGER_COLUMNS = [
     "id", "ts", "platform", "market_id", "title", "category", "side",
     "entry_price", "stake_usd", "score", "signals", "hours_to_close",
-    "status", "last_price", "resolved_ts", "result", "roi", "clv",
+    "mode", "status", "last_price", "resolved_ts", "result", "roi", "clv",
 ]
 
 WATCH_COLUMNS = [
     "ts", "platform", "market_id", "title", "category", "score",
-    "signals", "reasons",
+    "signals", "mode", "reasons",
 ]
 
 # ---------------------------------------------------------------------------
@@ -145,6 +95,10 @@ def now_ts() -> float:
 
 def iso_utc(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def utc_hour(ts: float) -> int:
+    return datetime.fromtimestamp(ts, tz=timezone.utc).hour
 
 
 def parse_iso(s: str) -> float | None:
@@ -182,7 +136,7 @@ _session = requests.Session()
 _session.headers["User-Agent"] = "tipoff-scanner/1.0 (paper research; no orders)"
 
 
-def http_get_json(url: str, params: dict | None = None, retries: int = 2):
+def http_get_json(url: str, params=None, retries: int = 2):
     """GET with retry. Kalshi payloads can contain raw control characters,
     so parse leniently (strict=False) instead of resp.json()."""
     last_err = None
@@ -204,12 +158,12 @@ def http_get_json(url: str, params: dict | None = None, retries: int = 2):
 # Market fetch + normalization
 # ---------------------------------------------------------------------------
 # Normalized market dict:
-#   platform, id, title, category, close_ts,
+#   platform, id, event (grouping key for dedup), title, category, close_ts,
 #   price        - current YES probability (mid where possible)
 #   yes_ask/no_ask - what a taker pays to enter each side
-#   spread, vol (cumulative), vol24,
-#   depth_yes_usd / depth_no_usd  - visible size at the touch (Kalshi) or
-#                                   book-liquidity proxy (Polymarket)
+#   vol (cumulative), vol24,
+#   depth_yes_usd / depth_no_usd - size at the touch (Kalshi) or
+#                                  book-liquidity proxy (Polymarket)
 #   url          - human link for the alert (may be "")
 
 
@@ -298,13 +252,13 @@ def fetch_kalshi_markets() -> list[dict]:
                 out.append({
                     "platform": "kalshi",
                     "id": m["ticker"],
+                    "event": ev.get("event_ticker", m["ticker"]),
                     "title": title,
                     "category": categorize(title, ev.get("category", "")),
                     "close_ts": parse_iso(m.get("close_time", "")),
                     "price": price,
                     "yes_ask": yes_ask,
                     "no_ask": no_ask,
-                    "spread": max(0.0, yes_ask - yes_bid) if yes_ask > 0 else 1.0,
                     "vol": safe_float(m.get("volume_fp")),
                     "vol24": safe_float(m.get("volume_24h_fp")),
                     # buying YES lifts the yes ask; buying NO crosses the yes bid
@@ -350,13 +304,13 @@ def fetch_polymarket_markets() -> list[dict]:
             out.append({
                 "platform": "poly",
                 "id": m["conditionId"],
+                "event": slug or m["conditionId"],
                 "title": title,
                 "category": categorize(f'{title} {ev.get("title", "")}'),
                 "close_ts": parse_iso(m.get("endDate") or ""),
                 "price": price,
                 "yes_ask": best_ask if best_ask > 0 else prices[0],
                 "no_ask": (1.0 - best_bid) if best_bid > 0 else prices[1],
-                "spread": max(0.0, best_ask - best_bid) if best_ask > 0 else 1.0,
                 "vol": safe_float(m.get("volumeNum")),
                 "vol24": safe_float(m.get("volume24hr")),
                 # Gamma exposes total book liquidity, not touch size; the gate
@@ -386,6 +340,8 @@ def select_universe(markets: list[dict], min_vol24: float) -> list[dict]:
 #   "mv":  recent |price moves| (<= MAX_MOVE_WINDOW)
 #   "la":  last alert ts (cooldown)     "c":  category
 # }
+# state["meta"] holds first_run_ts (calibration clock), last_ping_ts and the
+# rolling "day" counters for the daily ping.
 
 
 def market_key(m: dict) -> str:
@@ -395,7 +351,10 @@ def market_key(m: dict) -> str:
 def load_state() -> dict:
     if STATE_FILE.exists():
         try:
-            return json.loads(STATE_FILE.read_text())
+            state = json.loads(STATE_FILE.read_text())
+            state.setdefault("markets", {})
+            state.setdefault("meta", {})
+            return state
         except json.JSONDecodeError:
             print("  [warn] corrupt state file, starting fresh")
     return {"markets": {}, "meta": {}}
@@ -413,12 +372,18 @@ def save_state(state: dict) -> None:
     STATE_FILE.write_text("\n".join(lines))
 
 
-def observe_market(entry: dict | None, m: dict, ts: float) -> tuple[dict, dict]:
+def observe_market(entry: dict | None, m: dict, ts: float,
+                   cfg: dict = CFG) -> tuple[dict, dict]:
     """Fold the new snapshot into the baseline.
 
     Returns (updated_entry, obs) where obs holds the pre-update measurements
     the detectors need: dt_hours, vol_rate (per hour), price_move, plus the
     baseline stats as they stood BEFORE this observation.
+
+    Anti-contamination: once warmed up, the rate folded INTO the EWMA is
+    winsorized at BASELINE_WINSOR_MULT x the current mean, so a one-hour
+    burst can't inflate the baseline and mask the follow-through hours —
+    exactly the hours where informed money keeps accumulating.
     """
     if entry is None:
         entry = {"ts": ts, "v": m["vol"], "p": round(m["price"], 4), "n": 0,
@@ -438,15 +403,19 @@ def observe_market(entry: dict | None, m: dict, ts: float) -> tuple[dict, dict]:
         "recent_moves": list(entry["mv"]),
     }
 
-    alpha = CFG["EWMA_ALPHA"]
+    rate_upd = rate
+    if entry["n"] >= cfg["MIN_OBS"] and entry["m"] > 0:
+        rate_upd = min(rate, entry["m"] * cfg["BASELINE_WINSOR_MULT"])
+
+    alpha = cfg["EWMA_ALPHA"]
     if entry["n"] == 0:
-        entry["m"], entry["s2"] = rate, 0.0
+        entry["m"], entry["s2"] = rate_upd, 0.0
     else:
-        delta = rate - entry["m"]
+        delta = rate_upd - entry["m"]
         entry["m"] += alpha * delta
         entry["s2"] = (1 - alpha) * (entry["s2"] + alpha * delta * delta)
     entry["n"] += 1
-    entry["mv"] = (entry["mv"] + [round(abs(dp), 4)])[-CFG["MAX_MOVE_WINDOW"]:]
+    entry["mv"] = (entry["mv"] + [round(abs(dp), 4)])[-cfg["MAX_MOVE_WINDOW"]:]
     entry["ts"], entry["v"], entry["p"] = ts, m["vol"], round(m["price"], 4)
     entry["c"] = m["category"]
     return entry, obs
@@ -465,24 +434,24 @@ def prune_state(state: dict, ts: float) -> int:
 
 
 def detect_volume_spike(obs: dict, cfg: dict = CFG) -> dict | None:
-    """Hourly volume rate vs the market's own EWMA baseline (z-score)."""
+    """Hourly volume rate >= VOL_SPIKE_MULT x the market's own baseline."""
     if obs.get("dt_h") is None or obs["dt_h"] > cfg["MAX_GAP_HOURS"]:
         return None
     if obs["n"] < cfg["MIN_OBS"]:
         return None  # warm-up: not enough history to call anything a spike
-    rate, mean, var = obs["rate"], obs["base_mean"], obs["base_var"]
-    if rate * obs["dt_h"] < cfg["VOL_SPIKE_MIN_ABS"]:
-        return None  # tiny absolute delta; z-scores on dust are noise
-    std = math.sqrt(var) if var > 0 else max(1.0, mean * 0.5)
-    z = (rate - mean) / std if std > 0 else 0.0
-    if z < cfg["VOL_SPIKE_Z"]:
+    if obs["rate"] * obs["dt_h"] < cfg["VOL_SPIKE_MIN_ABS"]:
+        return None  # tiny absolute delta; multiples of dust are noise
+    mean = obs["base_mean"]
+    if mean <= 0:
+        return None  # dead market waking up is handled by the abs floor +
+                     # jump/trade signals, not a divide-by-zero multiple
+    mult = obs["rate"] / mean
+    if mult < cfg["VOL_SPIKE_MULT"]:
         return None
-    mult = rate / mean if mean > 0 else float("inf")
-    mult_txt = f"{mult:.0f}x" if math.isfinite(mult) else "new"
     return {
         "type": "volume_spike",
-        "desc": f"volume spike ({mult_txt} baseline, z={z:.1f})",
-        "points": min(40, round(10 + 5 * min(z, 8.0))),
+        "desc": f"volume spike ({mult:.0f}x baseline)",
+        "points": min(35, round(6 * mult)),
     }
 
 
@@ -490,13 +459,18 @@ def detect_price_jump(obs: dict, hours_to_close: float,
                       cfg: dict = CFG) -> dict | None:
     """Sudden price move vs the market's own recent-move baseline.
 
-    Scheduled-news proxy: a jump within SCHEDULED_NEWS_MIN_H of resolution is
-    presumed to be the event itself happening (game ending, announcement
-    landing) rather than informed money arriving early, so it does not fire.
+    Guards:
+      - scheduled-news proxy: a jump within SCHEDULED_NEWS_MIN_H of
+        resolution is presumed to be the event itself happening, not
+        informed money arriving early;
+      - phantom guard: a "jump" with almost no volume behind it is a
+        re-quoted book (one MM moving), not news.
     """
     if obs.get("dt_h") is None or obs["dt_h"] > cfg["PRICE_JUMP_MAX_AGE_H"]:
         return None
     if hours_to_close < cfg["SCHEDULED_NEWS_MIN_H"]:
+        return None
+    if obs["rate"] * obs["dt_h"] < cfg["JUMP_MIN_VOL_DELTA"]:
         return None
     dp = obs["dp"]
     if abs(dp) < cfg["PRICE_JUMP_MIN"]:
@@ -509,7 +483,7 @@ def detect_price_jump(obs: dict, hours_to_close: float,
     return {
         "type": "price_jump",
         "desc": f"price jump {dp * 100:+.0f}c in {obs['dt_h']:.1f}h",
-        "points": min(35, round(250 * abs(dp))),
+        "points": min(35, round(320 * abs(dp))),
         "direction": 1 if dp > 0 else -1,
     }
 
@@ -518,28 +492,44 @@ def detect_large_trades(trades: list[dict], since_ts: float,
                         cfg: dict = CFG) -> dict | None:
     """Largest single on-chain trade since the last snapshot (Polymarket).
 
-    `trades` are data-api rows: side BUY/SELL, outcomeIndex 0=Yes 1=No,
-    size (shares), price (USDC). Direction is toward YES if someone bought
-    Yes or dumped No.
+    Fires on either path:
+      absolute — notional >= LARGE_TRADE_USD;
+      relative — notional >= LARGE_TRADE_MED_MULT x this market's own median
+                 trade size (with a floor: 5x of dust is still dust).
+    The median comes from the whole fetched trade window, so a market where
+    everyone bets $50 flags a $600 order that an absolute floor would miss.
     """
+    notionals = [safe_float(t.get("size")) * safe_float(t.get("price"))
+                 for t in trades]
+    median = sorted(notionals)[len(notionals) // 2] if notionals else 0.0
+
     best = None
-    for t in trades:
+    for t, notional in zip(trades, notionals):
         if safe_float(t.get("timestamp")) <= since_ts:
-            continue
-        notional = safe_float(t.get("size")) * safe_float(t.get("price"))
-        if notional < cfg["LARGE_TRADE_USD"]:
             continue
         if best is None or notional > best[0]:
             best = (notional, t)
     if best is None:
         return None
     notional, t = best
+
+    absolute = notional >= cfg["LARGE_TRADE_USD"]
+    relative = (median > 0
+                and notional >= cfg["LARGE_TRADE_MED_MULT"] * median
+                and notional >= cfg["LARGE_TRADE_MIN_USD"])
+    if not (absolute or relative):
+        return None
+
+    mult_txt = f", {notional / median:.0f}x typical" if median > 0 else ""
     buys_yes = (t.get("side") == "BUY") == (t.get("outcomeIndex") == 0)
+    points = round(6 + notional / 500)
+    if relative:
+        points += 5  # out-of-character for THIS market is extra information
     return {
         "type": "large_trade",
-        "desc": f"${notional:,.0f} single trade "
-                f"({'into' if buys_yes else 'against'} YES)",
-        "points": min(30, round(10 + notional / 1000)),
+        "desc": f"${notional:,.0f} single trade"
+                f" ({'into' if buys_yes else 'against'} YES{mult_txt})",
+        "points": min(30, points),
         "direction": 1 if buys_yes else -1,
         "wallet": t.get("proxyWallet", ""),
         "notional": notional,
@@ -556,11 +546,98 @@ def is_fresh_wallet(activity_rows: list[dict], fetch_limit: int,
     return (ts - earliest) <= cfg["FRESH_WALLET_MAX_AGE_D"] * 86400
 
 
-FRESH_WALLET_SIGNAL = {
-    "type": "fresh_wallet",
-    "desc": "fresh wallet loading up",
-    "points": 20,
-}
+def fresh_wallet_signal(notional: float) -> dict:
+    points = 15 + (10 if notional >= 5000 else 0)
+    return {"type": "fresh_wallet",
+            "desc": f"fresh wallet (<{CFG['FRESH_WALLET_MAX_AGE_D']:.0f}d old)"
+                    f" loading up",
+            "points": points}
+
+
+def thin_market_signal(vol24: float, cfg: dict = CFG) -> dict | None:
+    """Insider-context bonus: big on-chain flow in a thin, obscure market is
+    far more informative than the same flow in a liquid one. Only added when
+    an on-chain signal already fired."""
+    if vol24 >= cfg["THIN_MARKET_VOL24"]:
+        return None
+    return {"type": "thin_market",
+            "desc": f"thin market (${vol24:,.0f}/24h)",
+            "points": 10}
+
+# ---------------------------------------------------------------------------
+# Cross-platform confirmation + dedup (pure functions — unit-tested)
+# ---------------------------------------------------------------------------
+
+_STOPWORDS = frozenset(
+    "will the a an in on at by of to be for vs and or before after over under"
+    " than with is are does do next who what when how much many".split())
+
+
+def title_tokens(title: str) -> frozenset:
+    words = re.findall(r"[a-z0-9]+", (title or "").lower())
+    return frozenset(w for w in words if w not in _STOPWORDS)
+
+
+def title_similarity(a: str, b: str) -> float:
+    """Jaccard on stopword-stripped tokens, with a hard veto: if both titles
+    carry numbers and the number sets differ at all, they're different
+    strikes of the same family ('BTC > 150k by Dec 31' vs 'BTC > 200k by
+    Dec 31'), similarity 0."""
+    ta, tb = title_tokens(a), title_tokens(b)
+    if not ta or not tb:
+        return 0.0
+    na = {t for t in ta if t.isdigit()}
+    nb = {t for t in tb if t.isdigit()}
+    if na and nb and na != nb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+def cross_platform_confirm(cands: list[dict], cfg: dict = CFG) -> None:
+    """Same story moving on BOTH venues at once is much less likely to be
+    noise. Adds a confirmation signal (in place) to every candidate whose
+    title matches a candidate on the other platform."""
+    for i, a in enumerate(cands):
+        for b in cands[i + 1:]:
+            if a["platform"] == b["platform"]:
+                continue
+            if title_similarity(a["title"], b["title"]) < cfg["CROSS_CONFIRM_JACCARD"]:
+                continue
+            for c, other in ((a, b), (b, a)):
+                if any(s["type"] == "cross_platform" for s in c["signals"]):
+                    continue
+                c["signals"].append({
+                    "type": "cross_platform",
+                    "desc": f"confirmed on {other['platform']} too",
+                    "points": cfg["CROSS_CONFIRM_POINTS"],
+                })
+
+
+def dedup_alerts(cands: list[dict], cfg: dict = CFG
+                 ) -> tuple[list[dict], list[tuple[dict, str]]]:
+    """One alert per story. Multiple legs of the same event spiking together
+    (one news item) keep only the top scorer; a cross-platform twin of an
+    already-kept alert is dropped (its info is on the kept one). Returns
+    (kept, [(dropped, reason), ...])."""
+    kept: list[dict] = []
+    dropped: list[tuple[dict, str]] = []
+    seen_events: dict = {}
+    for c in sorted(cands, key=lambda x: x["score"], reverse=True):
+        ekey = (c["platform"], c.get("event") or c["market_id"])
+        if ekey in seen_events:
+            dropped.append((c, f"duplicate leg of alerted event: "
+                               f"{seen_events[ekey]['title'][:50]}"))
+            continue
+        twin = next(
+            (k for k in kept if k["platform"] != c["platform"]
+             and title_similarity(k["title"], c["title"])
+             >= cfg["CROSS_CONFIRM_JACCARD"]), None)
+        if twin:
+            dropped.append((c, f"same story alerted on {twin['platform']}"))
+            continue
+        seen_events[ekey] = c
+        kept.append(c)
+    return kept, dropped
 
 # ---------------------------------------------------------------------------
 # Scoring, direction, followability gate (pure functions — unit-tested)
@@ -579,16 +656,19 @@ def choose_side(signals: list[dict], price_drift: float) -> str:
     return "yes" if price_drift >= 0 else "no"
 
 
-def followability_gate(entry_price: float, depth_usd: float, spread: float,
-                       hours_to_close: float, cfg: dict = CFG,
+def followability_gate(entry_price: float, signal_price: float,
+                       depth_usd: float, hours_to_close: float,
+                       cfg: dict = CFG,
                        min_depth: float | None = None) -> tuple[bool, list[str]]:
     """Can this signal still be followed at a fair price, in size, in time?
 
     Returns (passes, reasons_it_failed). Every check is a reason the follow
     would lose even if the signal itself is real:
-      - price already moved past GATE_MAX_PRICE -> we're late, edge consumed
-      - price below GATE_MIN_PRICE -> longshot churn, not an information lag
-      - spread too wide / no depth -> fill price won't resemble signal price
+      - entry already past GATE_MAX_PRICE -> the move happened, we're late
+      - entry below GATE_MIN_PRICE -> longshot churn, not an information lag
+      - entry > signal price + GATE_MAX_SLIP -> not catchable: the fill
+        won't resemble the price the signal fired at
+      - no depth -> can't put even a small size on
       - resolves too soon -> no lag window, the event IS the resolution
       - resolves too far out -> capital locked, CLV meaningless for months
     """
@@ -597,8 +677,9 @@ def followability_gate(entry_price: float, depth_usd: float, spread: float,
         reasons.append(f"too late: entry {entry_price:.2f} > {cfg['GATE_MAX_PRICE']}")
     if entry_price < cfg["GATE_MIN_PRICE"]:
         reasons.append(f"longshot: entry {entry_price:.2f} < {cfg['GATE_MIN_PRICE']}")
-    if spread > cfg["GATE_MAX_SPREAD"]:
-        reasons.append(f"spread {spread * 100:.0f}c too wide")
+    slip = entry_price - signal_price
+    if slip > cfg["GATE_MAX_SLIP"] + 1e-9:
+        reasons.append(f"not catchable: entry {slip * 100:.0f}c above signal")
     floor = cfg["GATE_MIN_DEPTH_USD"] if min_depth is None else min_depth
     if depth_usd < floor:
         reasons.append(f"thin: ${depth_usd:,.0f} depth < ${floor:,.0f}")
@@ -619,7 +700,22 @@ def suggested_stake(score: int, depth_usd: float, cfg: dict = CFG) -> float:
     return max(10.0, 5 * round(stake / 5))
 
 # ---------------------------------------------------------------------------
-# Telegram (formatter is pure — unit-tested; sender does I/O)
+# Calibration week (pure helpers — unit-tested)
+# ---------------------------------------------------------------------------
+
+
+def calibration_status(first_run_ts: float, ts: float,
+                       cfg: dict = CFG) -> tuple[bool, int]:
+    """(active, day_number). Day 1 starts at first_run_ts."""
+    day = int((ts - first_run_ts) // 86400) + 1
+    return (ts - first_run_ts < cfg["CALIB_DAYS"] * 86400, max(1, day))
+
+
+def run_mode(calib_active: bool) -> str:
+    return "calib" if calib_active else "normal"
+
+# ---------------------------------------------------------------------------
+# Telegram (formatters are pure — unit-tested; sender does I/O)
 # ---------------------------------------------------------------------------
 
 ALERT_HEADER = "🚨🚨 ALERT!!! INSIDER TRADING SCOOP 🚨🚨"
@@ -628,7 +724,7 @@ ALERT_HEADER = "🚨🚨 ALERT!!! INSIDER TRADING SCOOP 🚨🚨"
 def format_alert(alert: dict) -> str:
     """Phone-skimmable alert. `alert` needs: title, platform, market_id,
     signals (list of desc strings), side, entry_price, category, stake_usd,
-    hours_to_close, score, url."""
+    hours_to_close, score, url, and optionally calib (bool)."""
     side = alert["side"].upper()
     price_c = alert["entry_price"] * 100
     window = alert["hours_to_close"]
@@ -647,6 +743,33 @@ def format_alert(alert: dict) -> str:
     ]
     if alert.get("url"):
         lines.append(f"🔗 {alert['url']}")
+    if alert.get("calib"):
+        lines.append("📏 calibration week — thresholds loose")
+    return "\n".join(lines)
+
+
+def format_daily_ping(stats: dict) -> str:
+    """Still-alive summary. `stats`: runs, markets, alerts, watches,
+    open_positions, graded, wins, losses, avg_clv, calib_day (0 = normal)."""
+    lines = [
+        "🟢 Tipoff daily check-in — running fine",
+        f"Last 24h: {stats['runs']} scans · {stats['markets']:,} markets"
+        f" · {stats['alerts']} alerts · {stats['watches']} watches",
+    ]
+    if stats["graded"]:
+        lines.append(
+            f"Paper book: {stats['open_positions']} open · {stats['graded']}"
+            f" graded ({stats['wins']}W–{stats['losses']}L, avg CLV"
+            f" {stats['avg_clv'] * 100:+.1f}c)")
+    elif stats["open_positions"]:
+        lines.append(f"Paper book: {stats['open_positions']} open, none"
+                     f" resolved yet")
+    if stats["alerts"] == 0:
+        lines.append("All quiet — nothing strong + followable fired.")
+    if stats.get("calib_day"):
+        lines.append(f"📏 calibration week: day {stats['calib_day']:.0f}/"
+                     f"{CFG['CALIB_DAYS']:.0f} — running loose, review the"
+                     f" watch log")
     return "\n".join(lines)
 
 
@@ -671,6 +794,16 @@ def send_telegram(text: str) -> bool:
         print(f"  [warn] telegram send error: {err}")
         return False
 
+
+def should_ping(meta: dict, ts: float, cfg: dict = CFG) -> bool:
+    """Once a day: prefer the run in PING_UTC_HOUR; a >PING_MAX_GAP_H gap
+    forces one regardless (also fires the hello ping on the very first run)."""
+    last = safe_float(meta.get("last_ping_ts"))
+    if ts - last >= cfg["PING_MAX_GAP_H"] * 3600:
+        return True
+    return (utc_hour(ts) == cfg["PING_UTC_HOUR"]
+            and ts - last >= cfg["PING_MIN_GAP_H"] * 3600)
+
 # ---------------------------------------------------------------------------
 # Paper ledger + CLV grading
 # ---------------------------------------------------------------------------
@@ -680,7 +813,10 @@ def read_ledger() -> list[dict]:
     if not LEDGER_FILE.exists():
         return []
     with LEDGER_FILE.open(newline="") as fh:
-        return list(csv.DictReader(fh))
+        rows = list(csv.DictReader(fh))
+    for r in rows:  # schema migration: rows written before the mode column
+        r.setdefault("mode", "normal")
+    return rows
 
 
 def write_ledger(rows: list[dict]) -> None:
@@ -711,6 +847,12 @@ def grade_row(row: dict, result: str, ts: float) -> None:
     row["roi"] = f"{((1.0 - entry) / entry) if won else -1.0:.4f}"
     last = safe_float(row.get("last_price"), entry)
     row["clv"] = f"{last - entry:.4f}"
+
+
+def verdict_rows(rows: list[dict]) -> list[dict]:
+    """Calibration-week alerts used looser thresholds; mixing them into the
+    verdict would bias it. They stay in the ledger for review only."""
+    return [r for r in rows if r.get("mode") != "calib"]
 
 
 def compute_report(rows: list[dict]) -> dict:
@@ -755,11 +897,15 @@ def verdict(n_graded: int, avg_clv: float, avg_roi: float) -> str:
 
 
 def write_report(rows: list[dict], ts: float) -> None:
-    stats = compute_report(rows)
+    scored = verdict_rows(rows)
+    n_calib = len(rows) - len(scored)
+    stats = compute_report(scored)
     lines = [
         "# Tipoff — paper-trading report",
         "",
-        f"_Auto-generated {iso_utc(ts)}. {len(rows)} alerts ledgered._",
+        f"_Auto-generated {iso_utc(ts)}. {len(rows)} alerts ledgered"
+        + (f" ({n_calib} from calibration week, excluded from the verdict"
+           f" stats below)." if n_calib else "."),
         "",
         "CLV = final observed price for our side minus entry price, in probability",
         "points. Positive CLV means the market kept moving our way after the alert.",
@@ -790,7 +936,7 @@ def append_watch_log(entries: list[dict]) -> None:
     rows.extend(entries)
     rows = rows[-CFG["WATCH_LOG_MAX_ROWS"]:]
     with WATCH_FILE.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=WATCH_COLUMNS)
+        writer = csv.DictWriter(fh, fieldnames=WATCH_COLUMNS, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -899,8 +1045,30 @@ def scan_market(m: dict, entry: dict | None, ts: float,
                 activity = http_get_json(f"{DATA_API_BASE}/activity", {
                     "user": big["wallet"], "limit": limit}) or []
                 if is_fresh_wallet(activity, limit, ts):
-                    signals.append(dict(FRESH_WALLET_SIGNAL))
+                    signals.append(fresh_wallet_signal(big["notional"]))
+            thin = thin_market_signal(m["vol24"])
+            if thin:
+                signals.append(thin)
     return entry, signals, obs
+
+
+def build_day_stats(meta: dict, ledger: list[dict], calib_active: bool,
+                    calib_day: int) -> dict:
+    day = meta.get("day", {})
+    graded_rows = [r for r in ledger if r["status"] in ("won", "lost")]
+    return {
+        "runs": day.get("runs", 0),
+        "markets": day.get("markets", 0),
+        "alerts": day.get("alerts", 0),
+        "watches": day.get("watches", 0),
+        "open_positions": sum(r["status"] == "open" for r in ledger),
+        "graded": len(graded_rows),
+        "wins": sum(r["status"] == "won" for r in graded_rows),
+        "losses": sum(r["status"] == "lost" for r in graded_rows),
+        "avg_clv": (sum(safe_float(r["clv"]) for r in graded_rows)
+                    / len(graded_rows)) if graded_rows else 0.0,
+        "calib_day": calib_day if calib_active else 0,
+    }
 
 
 def main() -> int:
@@ -909,6 +1077,20 @@ def main() -> int:
     print(f"tipoff scan @ {iso_utc(ts)}")
 
     state = load_state()
+    meta = state["meta"]
+    meta.setdefault("first_run_ts", ts)
+    day = meta.setdefault("day", {"runs": 0, "alerts": 0, "watches": 0,
+                                  "markets": 0})
+    calib_active, calib_day = calibration_status(meta["first_run_ts"], ts)
+    mode = run_mode(calib_active)
+    if calib_active:
+        print(f"  calibration week: day {calib_day}/{CFG['CALIB_DAYS']:.0f}"
+              f" (alert score >= {CFG['CALIB_ALERT_SCORE']})")
+    alert_score = CFG["CALIB_ALERT_SCORE"] if calib_active else CFG["ALERT_SCORE"]
+    max_alerts = (CFG["CALIB_MAX_ALERTS_PER_RUN"] if calib_active
+                  else CFG["MAX_ALERTS_PER_RUN"])
+    cooldown_h = CFG["CALIB_COOLDOWN_H"] if calib_active else CFG["REALERT_COOLDOWN_H"]
+
     ledger = read_ledger()
 
     # --- 1. grade yesterday's calls before making today's ---
@@ -926,87 +1108,122 @@ def main() -> int:
         write_report(ledger, ts)
         return 0
 
-    # --- 3. scan for signals ---
+    # --- 3. scan every market, collect signal-bearing candidates ---
     trade_budget = {"trades": 0, "wallets": 0}
-    alerts, watches = [], []
-    alerted_ids = {r["market_id"] for r in ledger if r["status"] == "open"}
-
+    candidates = []
     for m in kalshi + poly:
         key = market_key(m)
         entry, signals, obs = scan_market(m, state["markets"].get(key), ts,
                                           trade_budget)
         state["markets"][key] = entry
-        if not signals:
-            continue
+        if signals:
+            candidates.append({**m, "signals": signals, "obs": obs,
+                               "state_key": key})
 
-        score = score_signals(signals)
-        side = choose_side(signals, obs.get("dp", 0.0))
-        entry_price = m["yes_ask"] if side == "yes" else m["no_ask"]
-        depth = m["depth_yes_usd"] if side == "yes" else m["depth_no_usd"]
-        hours_to_close = ((m["close_ts"] or ts) - ts) / 3600.0
-        min_depth = (CFG["GATE_MIN_LIQUIDITY_USD"] if m["platform"] == "poly"
+    # --- 4. cross-platform confirmation, then score/gate/dedup ---
+    cross_platform_confirm(candidates)
+
+    alertable, watches = [], []
+    holding = {r["market_id"] for r in ledger if r["status"] == "open"}
+
+    def to_watch(c, score, reasons):
+        watches.append({
+            "ts": iso_utc(ts), "platform": c["platform"],
+            "market_id": c["id"], "title": c["title"],
+            "category": c["category"], "score": score,
+            "signals": " + ".join(s["desc"] for s in c["signals"]),
+            "mode": mode, "reasons": "; ".join(reasons),
+        })
+
+    for c in candidates:
+        score = score_signals(c["signals"])
+        side = choose_side(c["signals"], c["obs"].get("dp", 0.0))
+        entry_price = c["yes_ask"] if side == "yes" else c["no_ask"]
+        signal_price = side_price(side, c["price"])
+        depth = c["depth_yes_usd"] if side == "yes" else c["depth_no_usd"]
+        hours_to_close = ((c["close_ts"] or ts) - ts) / 3600.0
+        min_depth = (CFG["GATE_MIN_LIQUIDITY_USD"] if c["platform"] == "poly"
                      else CFG["GATE_MIN_DEPTH_USD"])
         passes, reasons = followability_gate(
-            entry_price, depth, m["spread"], hours_to_close,
+            entry_price, signal_price, depth, hours_to_close,
             min_depth=min_depth)
 
-        if score < CFG["ALERT_SCORE"]:
-            passes, reasons = False, reasons + [f"score {score} < {CFG['ALERT_SCORE']}"]
-        if m["id"] in alerted_ids:
-            passes, reasons = False, reasons + ["already holding (open ledger row)"]
-        cooldown = ts - safe_float(entry.get("la")) < CFG["REALERT_COOLDOWN_H"] * 3600
-        if passes and cooldown:
+        if score < alert_score:
+            passes = False
+            reasons = reasons + [f"score {score} < {alert_score}"]
+        if c["id"] in holding:
+            passes = False
+            reasons = reasons + ["already holding (open ledger row)"]
+        last_alert = safe_float(state["markets"][c["state_key"]].get("la"))
+        if passes and ts - last_alert < cooldown_h * 3600:
             passes, reasons = False, ["re-alert cooldown"]
 
-        record = {
-            "ts": iso_utc(ts), "platform": m["platform"], "market_id": m["id"],
-            "title": m["title"], "category": m["category"], "score": score,
-            "signals": " + ".join(s["desc"] for s in signals),
-        }
         if passes:
-            alerts.append({**record, "side": side, "entry_price": entry_price,
-                           "depth": depth, "hours_to_close": hours_to_close,
-                           "url": m["url"], "state_key": key})
+            alertable.append({**c, "score": score, "side": side,
+                              "entry_price": entry_price, "depth": depth,
+                              "hours_to_close": hours_to_close})
         else:
-            watches.append({**record, "reasons": "; ".join(reasons)})
-            print(f"  WATCH [{score:>3}] {m['title'][:60]} :: {record['signals']}"
-                  f" :: {'; '.join(reasons)}")
+            to_watch(c, score, reasons)
 
-    # --- 4. alert the strongest, ledger them ---
-    alerts.sort(key=lambda a: a["score"], reverse=True)
-    overflow = alerts[CFG["MAX_ALERTS_PER_RUN"]:]
-    for a in overflow:
-        watches.append({k: a[k] for k in WATCH_COLUMNS if k in a}
-                       | {"reasons": "alert cap for this run"})
-    alerts = alerts[: CFG["MAX_ALERTS_PER_RUN"]]
+    kept, duplicates = dedup_alerts(alertable)
+    for c, reason in duplicates:
+        to_watch(c, c["score"], [reason])
+    for c in kept[max_alerts:]:
+        to_watch(c, c["score"], ["alert cap for this run"])
+    alerts = kept[:max_alerts]
 
+    for w in watches:
+        print(f"  WATCH [{w['score']:>3}] {w['title'][:55]} ::"
+              f" {w['signals']} :: {w['reasons']}")
+
+    # --- 5. send alerts, append to the paper ledger ---
     next_id = 1 + max((int(r["id"]) for r in ledger if r["id"].isdigit()),
                       default=0)
     for a in alerts:
         stake = suggested_stake(a["score"], a["depth"])
-        msg = format_alert({**a, "stake_usd": stake,
-                            "signals": a["signals"].split(" + ")})
+        desc_list = [s["desc"] for s in a["signals"]]
+        msg = format_alert({
+            "title": a["title"], "platform": a["platform"],
+            "market_id": a["id"], "signals": desc_list, "side": a["side"],
+            "entry_price": a["entry_price"], "category": a["category"],
+            "stake_usd": stake, "hours_to_close": a["hours_to_close"],
+            "score": a["score"], "url": a["url"], "calib": calib_active,
+        })
         sent = send_telegram(msg)
         print(f"  ALERT [{a['score']:>3}] {'sent' if sent else 'dry'} :: "
-              f"{a['title'][:60]} ({a['side']} @ {a['entry_price']:.2f})")
+              f"{a['title'][:55]} ({a['side']} @ {a['entry_price']:.2f})")
         state["markets"][a["state_key"]]["la"] = ts
         ledger.append({
-            "id": str(next_id), "ts": a["ts"], "platform": a["platform"],
-            "market_id": a["market_id"], "title": a["title"],
+            "id": str(next_id), "ts": iso_utc(ts), "platform": a["platform"],
+            "market_id": a["id"], "title": a["title"],
             "category": a["category"], "side": a["side"],
             "entry_price": f"{a['entry_price']:.4f}",
             "stake_usd": f"{stake:.0f}", "score": str(a["score"]),
-            "signals": a["signals"],
-            "hours_to_close": f"{a['hours_to_close']:.1f}", "status": "open",
-            "last_price": f"{a['entry_price']:.4f}", "resolved_ts": "",
-            "result": "", "roi": "", "clv": "",
+            "signals": " + ".join(desc_list),
+            "hours_to_close": f"{a['hours_to_close']:.1f}", "mode": mode,
+            "status": "open", "last_price": f"{a['entry_price']:.4f}",
+            "resolved_ts": "", "result": "", "roi": "", "clv": "",
         })
         next_id += 1
 
-    # --- 5. persist everything ---
+    # --- 6. daily still-alive ping ---
+    day["runs"] += 1
+    day["alerts"] += len(alerts)
+    day["watches"] += len(watches)
+    day["markets"] = len(kalshi) + len(poly)
+    if should_ping(meta, ts):
+        ping = format_daily_ping(
+            build_day_stats(meta, ledger, calib_active, calib_day))
+        send_telegram(ping)
+        print("  daily ping sent")
+        meta["last_ping_ts"] = ts
+        meta["day"] = {"runs": 0, "alerts": 0, "watches": 0,
+                       "markets": day["markets"]}
+
+    # --- 7. persist everything ---
     pruned = prune_state(state, ts)
-    state["meta"] = {"last_run_ts": ts, "last_run": iso_utc(ts),
-                     "tracked": len(state["markets"])}
+    meta.update({"last_run_ts": ts, "last_run": iso_utc(ts),
+                 "tracked": len(state["markets"]), "mode": mode})
     save_state(state)
     write_ledger(ledger)
     write_report(ledger, ts)

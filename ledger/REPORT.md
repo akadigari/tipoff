@@ -1,6 +1,6 @@
 # Tipoff — paper-trading report
 
-_Auto-generated 2026-07-11T03:22:49Z. 0 alerts ledgered._
+_Auto-generated 2026-07-11T03:37:12Z. 0 alerts ledgered.
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
