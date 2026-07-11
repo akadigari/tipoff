@@ -33,7 +33,8 @@ CFG = {
     "EWMA_ALPHA": 0.15,           # weight of newest observation
     "MIN_OBS": 8,                 # warm-up observations before signals fire
     "MAX_MOVE_WINDOW": 12,        # recent |price moves| kept for jump baseline
-    "MAX_GAP_HOURS": 6.0,         # snapshot gap beyond which signals skip
+    "MAX_GAP_HOURS": 6.5,         # snapshot gap beyond which signals skip
+                                  # (6.5 so a 6h throttled cadence still works)
     "STALE_PRUNE_HOURS": 72.0,    # drop markets unseen for this long
     "BASELINE_WINSOR_MULT": 4.0,  # cap a spike at Nx baseline before folding
                                   # it into the EWMA, so one burst can't poison
@@ -117,6 +118,24 @@ CFG = {
     "PING_UTC_HOUR": 13,          # aim for the run in this UTC hour (~9am ET)
     "PING_MIN_GAP_H": 20.0,       # don't ping twice in a day
     "PING_MAX_GAP_H": 26.0,       # fallback if the target-hour run was missed
+
+    # ------------------------------------------------------------------
+    # GitHub Actions minutes guard + self-throttling.
+    # Usage is measured from this repo's own workflow runs (built-in token,
+    # no extra secret). When the month projects over budget, Tipoff slows
+    # itself down: with a WORKFLOW_EDIT_TOKEN secret it rewrites its own
+    # cron (real savings); without one it skips scans in place (~half).
+    # Throttle only tightens within a month; it resets on the 1st.
+    # ------------------------------------------------------------------
+    "ACTIONS_BUDGET_MIN": _num("ACTIONS_BUDGET_MIN", 1800),  # of the 2000
+                                  # free private-repo minutes; headroom left
+                                  # for your other repos
+    "BUDGET_MIN_ELAPSED_DAYS": 2.0,   # damp wild projections on day 1
+    "BUDGET_WARN_USED_PCT": 0.80,     # heads-up alert at 80% used
+    "BUDGET_CRIT_USED_PCT": 0.95,     # hard-brake at 95% used -> every 6h
+    "BUDGET_2H_PROJ_PCT": 0.95,       # projected >= 95% of budget -> every 2h
+    "BUDGET_3H_PROJ_PCT": 1.30,       # projected >= 130% -> every 3h
+    "BUDGET_6H_PROJ_PCT": 2.00,       # projected >= 200% -> every 6h
 
     # ------------------------------------------------------------------
     # Misc

@@ -766,6 +766,11 @@ def format_daily_ping(stats: dict) -> str:
                      f" resolved yet")
     if stats["alerts"] == 0:
         lines.append("All quiet — nothing strong + followable fired.")
+    if stats.get("minutes_used") is not None:
+        lines.append(
+            f"⛽ {stats['minutes_used']:,.0f}/{stats['minutes_budget']:,.0f}"
+            f" Actions min ({stats['minutes_pct'] * 100:.0f}%)"
+            f" · {stats['cadence']}")
     if stats.get("calib_day"):
         lines.append(f"📏 calibration week: day {stats['calib_day']:.0f}/"
                      f"{CFG['CALIB_DAYS']:.0f} — running loose, review the"
@@ -803,6 +808,217 @@ def should_ping(meta: dict, ts: float, cfg: dict = CFG) -> bool:
         return True
     return (utc_hour(ts) == cfg["PING_UTC_HOUR"]
             and ts - last >= cfg["PING_MIN_GAP_H"] * 3600)
+
+# ---------------------------------------------------------------------------
+# GitHub Actions minutes guard + self-throttling
+# ---------------------------------------------------------------------------
+# Running out of Actions minutes is the one failure the daily ping can't
+# warn about: no minutes = no ping = looks exactly like "all quiet". So every
+# run measures this month's billable minutes from the repo's own workflow-run
+# history (the built-in GITHUB_TOKEN can read that; no billing scope needed),
+# projects month-end usage, and throttles BEFORE the tank is empty:
+#
+#   - with a WORKFLOW_EDIT_TOKEN secret (PAT that may edit workflows), Tipoff
+#     rewrites the cron line in its own workflow file via the GitHub API —
+#     real self-modification, real savings;
+#   - without it, it flips to skip-mode: the cron still fires hourly but the
+#     scanner exits immediately off-cadence (each skipped run still bills
+#     the 1-minute floor, so this only saves about half).
+#
+# The throttle only ever tightens within a month and resets on the 1st.
+
+WORKFLOW_PATH = ".github/workflows/tipoff.yml"
+CADENCE_CRON = {1: "7 * * * *", 2: "7 */2 * * *",
+                3: "7 */3 * * *", 6: "7 */6 * * *"}
+CADENCE_NAME = {1: "hourly", 2: "every 2h", 3: "every 3h", 6: "every 6h"}
+
+
+def month_context(ts: float) -> tuple[str, str, float]:
+    """(year-month string, month start ISO date, fraction of month elapsed)."""
+    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+    start = dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if start.month == 12:
+        nxt = start.replace(year=start.year + 1, month=1)
+    else:
+        nxt = start.replace(month=start.month + 1)
+    frac = (ts - start.timestamp()) / (nxt.timestamp() - start.timestamp())
+    return dt.strftime("%Y-%m"), start.strftime("%Y-%m-%d"), frac
+
+
+def estimate_billable_minutes(runs: list[dict]) -> float:
+    """Billable minutes from workflow-run records: per-run wall time rounded
+    UP to whole minutes (GitHub bills a 1-minute floor per job)."""
+    total = 0.0
+    for r in runs:
+        started = parse_iso(r.get("run_started_at") or "")
+        updated = parse_iso(r.get("updated_at") or "")
+        if started is None or updated is None:
+            continue
+        total += max(1.0, math.ceil(max(0.0, updated - started) / 60.0))
+    return total
+
+
+def fetch_actions_minutes(repo: str, token: str, month_start: str) -> float | None:
+    """Sum this month's billable minutes across the repo's workflow runs."""
+    runs: list[dict] = []
+    headers = {"Authorization": f"Bearer {token}",
+               "Accept": "application/vnd.github+json"}
+    for page in range(1, 11):  # 1000 runs covers a full hourly month
+        try:
+            resp = _session.get(
+                f"https://api.github.com/repos/{repo}/actions/runs",
+                params={"created": f">={month_start}", "per_page": 100,
+                        "page": page},
+                headers=headers, timeout=CFG["HTTP_TIMEOUT"])
+            resp.raise_for_status()
+            batch = resp.json().get("workflow_runs", [])
+        except (requests.RequestException, ValueError) as err:
+            print(f"  [warn] actions usage fetch failed: {err}")
+            return None
+        runs.extend(batch)
+        if len(batch) < 100:
+            break
+    return estimate_billable_minutes(runs)
+
+
+def budget_outlook(used: float, budget: float, month_frac: float,
+                   cfg: dict = CFG) -> dict:
+    """used_pct + straight-line month-end projection (damped early in the
+    month so day-one noise can't trigger a panic downshift)."""
+    frac = max(month_frac, cfg["BUDGET_MIN_ELAPSED_DAYS"] / 31.0)
+    projected = used / frac
+    return {"used": used, "budget": budget,
+            "used_pct": used / budget if budget else 0.0,
+            "projected": projected,
+            "projected_pct": projected / budget if budget else 0.0}
+
+
+def decide_eco_n(outlook: dict, current_n: int = 1, cfg: dict = CFG) -> int:
+    """Cadence divisor (1=hourly, 2/3/6 = every Nh). Monotonic within a
+    month — only ever slows down; the monthly rollover resets it."""
+    if outlook["used_pct"] >= cfg["BUDGET_CRIT_USED_PCT"] \
+            or outlook["projected_pct"] >= cfg["BUDGET_6H_PROJ_PCT"]:
+        n = 6
+    elif outlook["projected_pct"] >= cfg["BUDGET_3H_PROJ_PCT"]:
+        n = 3
+    elif outlook["projected_pct"] >= cfg["BUDGET_2H_PROJ_PCT"]:
+        n = 2
+    else:
+        n = 1
+    return max(n, current_n)
+
+
+def should_skip_run(eco_n: int, hour: int, cfg: dict = CFG) -> bool:
+    """Skip-mode cadence, anchored so the PING_UTC_HOUR run always scans
+    (the daily ping must survive throttling)."""
+    if eco_n <= 1:
+        return False
+    return hour % eco_n != cfg["PING_UTC_HOUR"] % eco_n
+
+
+def set_cron_cadence(workflow_text: str, eco_n: int) -> str:
+    return re.sub(r'- cron: "[^"]*"',
+                  f'- cron: "{CADENCE_CRON[eco_n]}"', workflow_text, count=1)
+
+
+def apply_cron_change(eco_n: int, token: str) -> bool:
+    """Rewrite this workflow's cron line on the default branch via the
+    GitHub contents API (needs a PAT allowed to edit workflow files)."""
+    import base64
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    branch = os.environ.get("GITHUB_REF_NAME", "main")
+    if not (repo and token):
+        return False
+    url = f"https://api.github.com/repos/{repo}/contents/{WORKFLOW_PATH}"
+    headers = {"Authorization": f"Bearer {token}",
+               "Accept": "application/vnd.github+json"}
+    try:
+        resp = _session.get(url, params={"ref": branch}, headers=headers,
+                            timeout=CFG["HTTP_TIMEOUT"])
+        resp.raise_for_status()
+        payload = resp.json()
+        text = base64.b64decode(payload["content"]).decode()
+        new_text = set_cron_cadence(text, eco_n)
+        if new_text == text:
+            return True
+        resp = _session.put(url, headers=headers, timeout=CFG["HTTP_TIMEOUT"],
+                            json={
+            "message": f"tipoff: self-throttle cron to "
+                       f"{CADENCE_NAME[eco_n]} (minutes budget)",
+            "content": base64.b64encode(new_text.encode()).decode(),
+            "sha": payload["sha"], "branch": branch,
+        })
+        resp.raise_for_status()
+        return True
+    except (requests.RequestException, KeyError, ValueError) as err:
+        print(f"  [warn] cron self-edit failed: {err}")
+        return False
+
+
+def format_budget_alert(outlook: dict, eco_n: int, method: str) -> str:
+    """method: 'cron' (workflow rewritten), 'skip' (in-place), 'warn'
+    (no throttle change, just a heads-up)."""
+    lines = [
+        "⛽ Tipoff minutes check",
+        f"Used {outlook['used']:,.0f}/{outlook['budget']:,.0f} GitHub Actions"
+        f" min this month ({outlook['used_pct'] * 100:.0f}%) — projected"
+        f" ~{outlook['projected']:,.0f} by month-end.",
+    ]
+    if method == "cron":
+        lines.append(f"🔧 Self-throttled: rewrote my own cron to"
+                     f" {CADENCE_NAME[eco_n]}. Resets to hourly on the 1st.")
+    elif method == "skip":
+        lines.append(f"🔧 Throttled to {CADENCE_NAME[eco_n]} by skipping"
+                     f" scans in place (skipped runs still bill ~1 min).")
+        lines.append("For real savings add a WORKFLOW_EDIT_TOKEN secret so I"
+                     " can rewrite my own cron — see README.")
+    else:
+        lines.append("No throttle change yet — watching the projection.")
+    return "\n".join(lines)
+
+
+def check_actions_budget(meta: dict, ts: float) -> dict | None:
+    """Measure usage, warn, and self-throttle. Mutates meta['budget'].
+    Returns the outlook (for the daily ping) or None when unmeasurable
+    (e.g. local runs outside Actions)."""
+    token_edit = os.environ.get("WORKFLOW_EDIT_TOKEN", "")
+    token_read = token_edit or os.environ.get("GH_TOKEN", "")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    ym, month_start, month_frac = month_context(ts)
+    b = meta.setdefault("budget", {})
+
+    if b.get("month") != ym:  # monthly rollover: restore full speed
+        old_n = b.get("eco_n", 1)
+        if old_n > 1:
+            restored = b.get("method") != "cron" or \
+                apply_cron_change(1, token_edit)
+            if restored:
+                send_telegram("⛽ New month — Tipoff back to hourly scans.")
+        b.clear()
+        b.update({"month": ym, "eco_n": 1, "method": "none", "warned": 0.0})
+
+    if not (token_read and repo):
+        return None
+    used = fetch_actions_minutes(repo, token_read, month_start)
+    if used is None:
+        return None
+    outlook = budget_outlook(used, CFG["ACTIONS_BUDGET_MIN"], month_frac)
+    b["used"] = round(used)
+
+    n = decide_eco_n(outlook, b.get("eco_n", 1))
+    if n > b.get("eco_n", 1):
+        if token_edit and apply_cron_change(n, token_edit):
+            method = "cron"
+        else:
+            method = "skip"
+        b.update({"eco_n": n, "method": method})
+        send_telegram(format_budget_alert(outlook, n, method))
+        print(f"  minutes budget: throttled to {CADENCE_NAME[n]} ({method})")
+    elif outlook["used_pct"] >= CFG["BUDGET_WARN_USED_PCT"] \
+            and b.get("warned", 0.0) < CFG["BUDGET_WARN_USED_PCT"]:
+        b["warned"] = outlook["used_pct"]
+        send_telegram(format_budget_alert(outlook, n, "warn"))
+    return outlook
 
 # ---------------------------------------------------------------------------
 # Paper ledger + CLV grading
@@ -1078,6 +1294,16 @@ def main() -> int:
 
     state = load_state()
     meta = state["meta"]
+
+    # eco skip-mode (no-PAT throttle): bail before any market fetch. The
+    # cron still fired, but this cycle is deliberately cheap.
+    b = meta.get("budget") or {}
+    if b.get("method") == "skip" and should_skip_run(b.get("eco_n", 1),
+                                                     utc_hour(ts)):
+        print(f"  eco mode ({CADENCE_NAME[b['eco_n']]}): skipping this cycle"
+              f" — over the minutes budget")
+        return 0
+
     meta.setdefault("first_run_ts", ts)
     day = meta.setdefault("day", {"runs": 0, "alerts": 0, "watches": 0,
                                   "markets": 0})
@@ -1206,21 +1432,31 @@ def main() -> int:
         })
         next_id += 1
 
-    # --- 6. daily still-alive ping ---
+    # --- 6. minutes guard (may warn or self-throttle) ---
+    outlook = check_actions_budget(meta, ts)
+
+    # --- 7. daily still-alive ping ---
     day["runs"] += 1
     day["alerts"] += len(alerts)
     day["watches"] += len(watches)
     day["markets"] = len(kalshi) + len(poly)
     if should_ping(meta, ts):
-        ping = format_daily_ping(
-            build_day_stats(meta, ledger, calib_active, calib_day))
+        stats = build_day_stats(meta, ledger, calib_active, calib_day)
+        if outlook:
+            stats.update({
+                "minutes_used": outlook["used"],
+                "minutes_budget": outlook["budget"],
+                "minutes_pct": outlook["used_pct"],
+                "cadence": CADENCE_NAME[meta["budget"].get("eco_n", 1)],
+            })
+        ping = format_daily_ping(stats)
         send_telegram(ping)
         print("  daily ping sent")
         meta["last_ping_ts"] = ts
         meta["day"] = {"runs": 0, "alerts": 0, "watches": 0,
                        "markets": day["markets"]}
 
-    # --- 7. persist everything ---
+    # --- 8. persist everything ---
     pruned = prune_state(state, ts)
     meta.update({"last_run_ts": ts, "last_run": iso_utc(ts),
                  "tracked": len(state["markets"]), "mode": mode})

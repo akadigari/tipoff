@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write         # the run commits the updated ledger/state back
+  actions: read           # the minutes guard reads this repo's run history
 
 concurrency:
   group: tipoff-scan      # never let two scans race on the same ledger
@@ -33,6 +34,12 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # built-in token: lets the minutes guard measure this month's usage
+          GH_TOKEN: ${{ github.token }}
+          # OPTIONAL PAT (Contents + Workflows write): lets Tipoff rewrite
+          # its own cron when it projects a minutes overrun. Absent -> it
+          # falls back to skipping scans in place.
+          WORKFLOW_EDIT_TOKEN: ${{ secrets.WORKFLOW_EDIT_TOKEN }}
         run: python tipoff.py
 
       - name: Commit ledger + state back to the repo

@@ -204,17 +204,46 @@ Setup:
 3. Actions tab → *Tipoff scanner* → *Run workflow* to test immediately;
    the hourly cron takes over from there.
 
-Budget note: ~1–2 min/run × 24 runs/day ≈ 900–1,500 Actions minutes/month,
-inside the 2,000 free minutes for private repos but not by miles. If you get
-tight, change the cron to `7 */2 * * *` (every 2h) — the baseline math handles
-irregular gaps.
+## Minutes guard + self-throttling
+
+Hourly runs cost ~900–1,500 of the 2,000 free private-repo Actions minutes
+per month. Running out is the one failure the daily ping can't warn about —
+no minutes means no ping, which looks exactly like "all quiet". So every run
+audits the month's usage and acts before the tank is empty:
+
+- **Measurement** — billable minutes are computed from this repo's own
+  workflow-run history via the built-in `GITHUB_TOKEN` (no extra secret, no
+  billing scope). The budget defaults to 1,800 (`ACTIONS_BUDGET_MIN` in
+  config.py), leaving headroom for your other repos.
+- **Warning** — one Telegram alert when usage crosses 80%, with the
+  month-end projection.
+- **Self-throttling** — when the projection exceeds budget (or usage hits
+  95%), Tipoff slows itself down to every 2h / 3h / 6h:
+  - **With the optional `WORKFLOW_EDIT_TOKEN` secret** it literally rewrites
+    the cron line in its own workflow file via the GitHub API and tells you
+    it did — full proportional savings.
+  - **Without it** it falls back to skip-mode: the cron still fires hourly
+    but off-cadence runs exit in seconds. Skipped runs still bill GitHub's
+    1-minute floor, so this only saves about half — the alert nags you about
+    the PAT for a reason.
+- The throttle only ever tightens within a month; on the 1st it resets to
+  hourly and tells you. The daily ping always carries a fuel gauge line
+  (`⛽ 412/1,800 Actions min (23%) · hourly`), and the skip cadence is
+  anchored so the ping-hour run always executes.
+
+To enable true self-modification, create a **fine-grained PAT**: GitHub →
+Settings → Developer settings → Fine-grained tokens → generate one scoped to
+**only the tipoff repo** with repository permissions **Contents: read/write**
+and **Workflows: read/write**, then add it as the `WORKFLOW_EDIT_TOKEN`
+Actions secret. Optional but recommended.
 
 ### Secrets
 
-| Secret | What it is |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | from [@BotFather](https://t.me/BotFather) → `/newbot` |
-| `TELEGRAM_CHAT_ID` | your chat's id — DM the bot once, then check `https://api.telegram.org/bot<TOKEN>/getUpdates` |
+| Secret | Required | What it is |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | yes | from [@BotFather](https://t.me/BotFather) → `/newbot` |
+| `TELEGRAM_CHAT_ID` | yes | your chat's id — DM the bot once, then check `https://api.telegram.org/bot<TOKEN>/getUpdates` |
+| `WORKFLOW_EDIT_TOKEN` | optional | fine-grained PAT (this repo only; Contents + Workflows read/write) that lets Tipoff rewrite its own cron when minutes run low |
 
 Add them in GitHub → repo → **Settings → Secrets and variables → Actions →
 New repository secret**. No other API keys are needed: all market-data
