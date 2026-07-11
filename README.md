@@ -60,6 +60,10 @@ reviewing the calibration-week logs, not after a single bad beat.
 | Fresh wallet (Polymarket) | the big trade came from a wallet whose entire visible history is **< 3 days old**, betting ≥ $1k (+bonus ≥ $5k) | 25 |
 | Thin-market bonus | on-chain flow in a market doing < $10k/24h — big bets in obscure markets are the classic insider footprint | 10 |
 | Cross-platform confirmation | the same story is moving on *both* venues this cycle (title-matched, with a number veto so different strikes never merge) | 10 |
+| Price impact (research-backed) | a ≥3¢ move on volume this market usually absorbs silently — insider trades move prices several times more per dollar than ordinary flow | 15 |
+| Repeat actor | the same wallet flagged again on a later scan (side-flips called out) — one print is noise, pressing is a position | 10 |
+| Within-trader size | the trade is ≥5× that wallet's own median — out of character even if small in absolute terms | 8 |
+| Crowd chatter (Polymarket) | ≥2 distinct commenters crying "insider"/"leak"/"who is buying" on this market in the last 48h while it's moving — the comment section notices before journalists do (deduped per wallet; spam bots don't count twice) | 12 |
 
 Guards that keep the jump signal honest: a **scheduled-news proxy** (jumps
 within 12h of resolution are presumed to be the event itself happening, not

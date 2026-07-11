@@ -89,11 +89,17 @@ CFG = {
     "CROSS_CONFIRM_POINTS": 10,
     "CROSS_CONFIRM_JACCARD": 0.5, # title-token similarity to call it a twin
 
+    # crowd chatter (Polymarket): commenters accusing a market of insider
+    # activity while its price/volume is anomalous
+    "CHATTER_WINDOW_H": 48.0,     # comments this recent count
+    "CHATTER_MIN_VOICES": 2,      # distinct commenters (spam bots repeat)
+
     # ------------------------------------------------------------------
     # API budget per run
     # ------------------------------------------------------------------
     "MAX_TRADE_FETCHES": 40,
     "MAX_WALLET_LOOKUPS": 10,
+    "MAX_COMMENT_FETCHES": 15,
 
     # ------------------------------------------------------------------
     # Followability gate

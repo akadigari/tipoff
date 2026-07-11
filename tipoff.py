@@ -326,6 +326,7 @@ def fetch_polymarket_markets() -> list[dict]:
                 "platform": "poly",
                 "id": m["conditionId"],
                 "event": slug or m["conditionId"],
+                "event_id": str(ev.get("id") or ""),
                 "title": title,
                 "category": categorize(f'{title} {ev.get("title", "")}'),
                 "close_ts": parse_iso(m.get("endDate") or ""),
@@ -656,6 +657,36 @@ def fresh_wallet_signal(notional: float) -> dict:
             "desc": f"fresh wallet (<{CFG['FRESH_WALLET_MAX_AGE_D']:.0f}d old)"
                     f" loading up",
             "points": points}
+
+
+CHATTER_RE = re.compile(
+    r"insider|inside\s+info|leak(?:ed|s)?\b|front.?run|knows?\s+something"
+    r"|someone\s+knows|smart\s+money|suspicious\s+(?:volume|buy|bet)"
+    r"|sus\s+(?:volume|buy|bet)|whale.{0,25}know|who(?:'s| is)\s+buying",
+    re.I)
+
+
+def detect_chatter(comments: list[dict], ts: float,
+                   cfg: dict = CFG) -> dict | None:
+    """Crowd chatter: multiple DISTINCT commenters raising insider suspicion
+    on this market recently. The comment section notices anomalies before
+    journalists do — but it's full of spam bots, so mentions are counted per
+    unique wallet, and one lone voice never fires."""
+    cutoff = ts - cfg["CHATTER_WINDOW_H"] * 3600
+    voices = set()
+    for c in comments:
+        created = parse_iso(c.get("createdAt") or "")
+        if created is None or created < cutoff:
+            continue
+        if CHATTER_RE.search(c.get("body") or ""):
+            voices.add(c.get("userAddress") or c.get("id"))
+    if len(voices) < cfg["CHATTER_MIN_VOICES"]:
+        return None
+    return {
+        "type": "chatter",
+        "desc": f"crowd chatter ({len(voices)} commenters crying insider)",
+        "points": min(12, 4 + 2 * len(voices)),
+    }
 
 
 def thin_market_signal(vol24: float, cfg: dict = CFG) -> dict | None:
@@ -1534,6 +1565,17 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
             thin = thin_market_signal(m["vol24"])
             if thin:
                 signals.append(thin)
+        # crowd chatter: are commenters already crying insider on this one?
+        if m.get("event_id") \
+                and trade_budget["comments"] < CFG["MAX_COMMENT_FETCHES"]:
+            trade_budget["comments"] += 1
+            comments = http_get_json(f"{GAMMA_BASE}/comments", {
+                "parent_entity_type": "Event",
+                "parent_entity_id": m["event_id"], "limit": 40,
+                "order": "createdAt", "ascending": "false"}) or []
+            chatter = detect_chatter(comments, ts)
+            if chatter:
+                signals.append(chatter)
     return entry, signals, obs
 
 
@@ -1614,7 +1656,7 @@ def main() -> int:
         return 0
 
     # --- 3. scan every market, collect signal-bearing candidates ---
-    trade_budget = {"trades": 0, "wallets": 0}
+    trade_budget = {"trades": 0, "wallets": 0, "comments": 0}
     candidates = []
     state.setdefault("wallets", {})
     for m in kalshi + poly:

@@ -107,6 +107,55 @@ def test_within_trader_ignores_non_trade_activity():
     assert within_trader_signal(rows, notional=5000.0) is None
 
 
+# --- crowd chatter --------------------------------------------------------------
+
+from tipoff import detect_chatter, iso_utc  # noqa: E402
+
+
+def comment(body, user="0xaaa", age_h=1.0):
+    return {"body": body, "userAddress": user,
+            "createdAt": iso_utc(NOW - age_h * 3600)}
+
+
+def test_chatter_fires_on_multiple_distinct_voices():
+    comments = [
+        comment("this is straight up insider trading lol", user="0xa"),
+        comment("someone knows something, look at that volume", user="0xb"),
+        comment("gm everyone", user="0xc"),
+    ]
+    sig = detect_chatter(comments, NOW)
+    assert sig is not None
+    assert "2 commenters" in sig["desc"]
+    assert sig["points"] == 8
+
+
+def test_chatter_one_voice_is_not_a_crowd():
+    comments = [comment("INSIDER!!", user="0xa"),
+                comment("insider trading again", user="0xa")]  # same wallet
+    assert detect_chatter(comments, NOW) is None
+
+
+def test_chatter_ignores_old_comments():
+    comments = [comment("insider", user="0xa", age_h=100),
+                comment("leaked info", user="0xb", age_h=90)]
+    assert detect_chatter(comments, NOW) is None
+
+
+def test_chatter_ignores_innocent_comments():
+    comments = [comment("great market", user="0xa"),
+                comment("buying more", user="0xb"),
+                comment("what are the odds", user="0xc")]
+    assert detect_chatter(comments, NOW) is None
+
+
+def test_chatter_keyword_breadth():
+    comments = [comment("whale definitely knows the result", user="0xa"),
+                comment("who is buying all this??", user="0xb"),
+                comment("front running the announcement", user="0xc")]
+    sig = detect_chatter(comments, NOW)
+    assert sig is not None and "3 commenters" in sig["desc"]
+
+
 # --- per-trigger CLV report ------------------------------------------------------
 
 def ledger_row(triggers, status="won", roi="0.5", clv="0.05"):
