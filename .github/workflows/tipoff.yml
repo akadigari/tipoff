@@ -1,0 +1,50 @@
+name: Tipoff scanner
+
+on:
+  schedule:
+    # Hourly, at :07 — GitHub delays top-of-the-hour crons heavily, an
+    # off-peak minute fires closer to on-time.
+    - cron: "7 * * * *"
+  workflow_dispatch: {}   # manual "Run workflow" button for testing
+
+permissions:
+  contents: write         # the run commits the updated ledger/state back
+
+concurrency:
+  group: tipoff-scan      # never let two scans race on the same ledger
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python tipoff.py
+
+      - name: Commit ledger + state back to the repo
+        run: |
+          git config user.name "tipoff-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state ledger
+          if git diff --cached --quiet; then
+            echo "nothing changed this cycle"
+            exit 0
+          fi
+          git commit -m "tipoff: scan $(date -u +'%Y-%m-%d %H:%M UTC')"
+          # another run may have pushed while we scanned; rebase then push
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push

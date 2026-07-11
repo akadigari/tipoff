@@ -1,0 +1,18 @@
+# Secrets — never committed. All keys live in GitHub Actions secrets;
+# locally they go in .env, which stays on this machine.
+.env
+.env.*
+!.env.example
+*.secret
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
