@@ -99,6 +99,13 @@ CFG = {
     "CHATTER_WINDOW_H": 48.0,     # comments this recent count
     "CHATTER_MIN_VOICES": 2,      # distinct commenters (spam bots repeat)
 
+    # insiderability: every documented episode happened in a market that
+    # resolves on a PRIVATE HUMAN DECISION (committee, government, board,
+    # celebrity, the subject themselves); none happened in game outcomes —
+    # nobody knows a live game's result in advance. Decision markets get a
+    # score bonus; game-outcome markets don't get scanned for signals.
+    "INSIDERABLE_POINTS": 8,
+
     # ------------------------------------------------------------------
     # API budget per run
     # ------------------------------------------------------------------

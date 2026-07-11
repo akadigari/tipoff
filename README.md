@@ -64,6 +64,15 @@ reviewing the calibration-week logs, not after a single bad beat.
 | Repeat actor | the same wallet flagged again on a later scan (side-flips called out) — one print is noise, pressing is a position | 10 |
 | Within-trader size | the trade is ≥5× that wallet's own median — out of character even if small in absolute terms | 8 |
 | Crowd chatter (Polymarket) | ≥2 distinct commenters crying "insider"/"leak"/"who is buying" on this market in the last 48h while it's moving — the comment section notices before journalists do (deduped per wallet; spam bots don't count twice) | 12 |
+| Decision-market bonus | the market resolves on a **private human decision** (resignation, pardon, award, engagement, military operation, indictment…) — the only place insiders structurally exist; every documented episode in [docs/BACKTEST.md](docs/BACKTEST.md) lived here | 8 |
+
+**Game-outcome markets are excluded from signal detection entirely.** A
+"Norway vs England both teams to score" move is the game happening, not a
+leak — nobody knows a live game's result in advance, so there is no insider
+to detect. The `insiderability()` taxonomy (derived from the episode
+history) skips them, which also stops them from flooding the watch log and
+burning the on-chain API budget. Sports *decision* markets — injuries,
+trades, retirements, suspensions — stay fully scannable: those do leak.
 
 Guards that keep the jump signal honest: a **scheduled-news proxy** (jumps
 within 12h of resolution are presumed to be the event itself happening, not

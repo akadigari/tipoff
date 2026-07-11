@@ -100,7 +100,7 @@ def test_single_signal_cannot_alert_even_in_calibration():
     max_single = {"volume_spike": 35, "price_jump": 35, "large_trade": 30,
                   "fresh_wallet": 25, "price_impact": 15, "chatter": 12,
                   "thin_market": 10, "cross_platform": 10,
-                  "repeat_actor": 10, "within_trader": 8}
+                  "repeat_actor": 10, "within_trader": 8, "insiderable": 8}
     assert max(max_single.values()) < CFG["CALIB_ALERT_SCORE"]
     assert CFG["CALIB_ALERT_SCORE"] <= CFG["ALERT_SCORE"]
 

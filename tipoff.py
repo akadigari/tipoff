@@ -92,7 +92,8 @@ WATCH_COLUMNS = [
 # answer "which signals/categories/wallets actually predict moves" — the
 # watch pile becomes training data instead of exhaust.
 RESEARCH_COLUMNS = [
-    "ts", "ts_unix", "platform", "market_id", "title", "category", "mode",
+    "ts", "ts_unix", "platform", "market_id", "title", "category",
+    "insiderable", "mode",
     "alerted",  # "0" not alerted, "1" follow alert, "M" monitor alert
     "score", "signals", "triggers", "side", "yes_price",
     "entry_price", "vol24", "depth", "hours_to_close", "gate_reasons",
@@ -236,6 +237,42 @@ def categorize(title: str, platform_category: str = "") -> str:
     if POLITICS_RE.search(text):
         return "politics"
     return "other"
+
+
+# Insiderability: derived from the documented episode history (see
+# docs/BACKTEST.md). Every verified insider case resolved on a private
+# human decision; game outcomes structurally cannot leak.
+
+GAME_OUTCOME_RE = re.compile(
+    r"\bvs\.?\s|\bboth teams\b|\bto score\b|\bmoneyline\b|\bspread\b"
+    r"|\bover/under\b|\bo/u\b|\btotal (?:points|goals|runs|sets)\b"
+    r"|\b(?:1st|2nd|3rd|4th|first|second) (?:half|quarter|period|set|map)\b"
+    r"|\bwin on \d{4}-\d{2}-\d{2}\b|\bwin (?:game|map|set|race) \d\b"
+    r"|\bshots on goal\b|\bpoints scored\b|\bmargin of victory\b", re.I)
+
+DECISION_RE = re.compile(
+    r"\b(?:announce|resign|step(?:s|ping)? down|fired?|out as|pardon"
+    r"|nominat|appoint|confirm(?:ed|ation)|cabinet|laureate|prize|award"
+    r"|winner of the|engag(?:ed|ement)|married|divorce|album|release date"
+    r"|launch|unveil|ipo|acquisition|acquire|merger|indicted?|arrest"
+    r"|charged|convict|verdict|sentenc|strike[sd]?\b|invade|invasion"
+    r"|capture|custody|military (?:action|operation)|attend|appear at"
+    r"|retire|suspend(?:ed|s|sion)?|trade[sd]? (?:to|for)|sign(?:s|ed)? with|drafted"
+    r"|host(?:s|ed)? the|cancel(?:led|ed)|renewed?|meet(?:s|ing)? with"
+    r"|visit|summit|ceasefire|treaty|executive order|veto)\b", re.I)
+
+
+def insiderability(title: str, category: str) -> str:
+    """'high' for private-decision markets (where every documented insider
+    episode lived), 'none' for game outcomes (no insider can exist), else
+    'normal'. Sports decision markets — injuries, trades, retirements,
+    awards — stay scannable: those DO leak."""
+    text = title or ""
+    if DECISION_RE.search(text):
+        return "high"
+    if category == "sports" or GAME_OUTCOME_RE.search(text):
+        return "none" if GAME_OUTCOME_RE.search(text) else "normal"
+    return "normal"
 
 
 def fetch_kalshi_markets() -> list[dict]:
@@ -1543,6 +1580,7 @@ def research_row(c: dict, ts: float, mode: str, alerted: bool, score: int,
     return {
         "ts": iso_utc(ts), "ts_unix": f"{ts:.0f}", "platform": c["platform"],
         "market_id": c["id"], "title": c["title"], "category": c["category"],
+        "insiderable": insiderability(c["title"], c["category"]),
         "mode": mode, "alerted": "1" if alerted else "0", "score": str(score),
         "signals": " + ".join(s["desc"] for s in c["signals"]),
         "triggers": "+".join(sorted({s["type"] for s in c["signals"]})),
@@ -1631,6 +1669,11 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
                 wallet_memory: dict) -> tuple[dict, list[dict], dict]:
     """Update one market's baseline and return (entry, signals, obs)."""
     entry, obs = observe_market(entry, m, ts)
+    tier = insiderability(m["title"], m["category"])
+    if tier == "none":
+        # game-outcome market: the move IS the game; no insider can exist.
+        # Baseline still updates (cheap) but no signals, no API spend.
+        return entry, [], obs
     signals = []
     hours_to_close = hours_until_close(m, ts)
 
@@ -1697,6 +1740,12 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
             chatter = detect_chatter(comments, ts)
             if chatter:
                 signals.append(chatter)
+    if signals and tier == "high":
+        # every documented insider episode lived in a decision market —
+        # anomalies here deserve more weight than the same anomaly elsewhere
+        signals.append({"type": "insiderable",
+                        "desc": "decision market — insider possible",
+                        "points": CFG["INSIDERABLE_POINTS"]})
     return entry, signals, obs
 
 
