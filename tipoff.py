@@ -93,7 +93,8 @@ WATCH_COLUMNS = [
 # watch pile becomes training data instead of exhaust.
 RESEARCH_COLUMNS = [
     "ts", "ts_unix", "platform", "market_id", "title", "category", "mode",
-    "alerted", "score", "signals", "triggers", "side", "yes_price",
+    "alerted",  # "0" not alerted, "1" follow alert, "M" monitor alert
+    "score", "signals", "triggers", "side", "yes_price",
     "entry_price", "vol24", "depth", "hours_to_close", "gate_reasons",
     "wallet", "p_1h", "p_6h", "p_24h",
 ]
@@ -309,8 +310,8 @@ def fetch_polymarket_markets() -> list[dict]:
                 outcomes = json.loads(m.get("outcomes") or "[]")
                 prices = [safe_float(p) for p in
                           json.loads(m.get("outcomePrices") or "[]")]
-            except json.JSONDecodeError:
-                continue
+            except (json.JSONDecodeError, TypeError):
+                continue  # TypeError: outcomePrices came back as JSON null
             if outcomes != ["Yes", "No"] or len(prices) != 2:
                 continue  # keep semantics simple: binary Yes/No legs only
             if not (m.get("enableOrderBook") and m.get("acceptingOrders")):
@@ -358,10 +359,11 @@ def select_universe(markets: list[dict], min_vol24: float) -> list[dict]:
 # state["markets"][key] = {
 #   "ts":  last snapshot unix ts        "v":  last cumulative volume
 #   "p":   last YES price               "n":  observations so far
-#   "m":   EWMA of hourly volume rate   "s2": EWMA variance of that rate
+#   "m":   EWMA of hourly volume rate   "im": EWMA of |price move|/volume
 #   "mv":  recent |price moves| (<= MAX_MOVE_WINDOW)
-#   "la":  last alert ts (cooldown)     "c":  category
+#   "la":  last alert ts (cooldown)     "lg": last grade (F=follow, M=monitor)
 # }
+# state["wallets"][addr] = {"ts": last flag, "d": direction, "n": flag count}
 # state["meta"] holds first_run_ts (calibration clock), last_ping_ts and the
 # rolling "day" counters for the daily ping.
 
@@ -381,12 +383,18 @@ def hours_until_close(m: dict, ts: float) -> float | None:
     return (close_ts - ts) / 3600.0
 
 
+RETIRED_MARKET_KEYS = ("s2", "c")  # dropped fields — strip from old state
+
+
 def load_state() -> dict:
     if STATE_FILE.exists():
         try:
             state = json.loads(STATE_FILE.read_text())
             state.setdefault("markets", {})
             state.setdefault("meta", {})
+            for entry in state["markets"].values():
+                for key in RETIRED_MARKET_KEYS:
+                    entry.pop(key, None)
             return state
         except json.JSONDecodeError:
             print("  [warn] corrupt state file, starting fresh")
@@ -422,7 +430,7 @@ def observe_market(entry: dict | None, m: dict, ts: float,
     """
     if entry is None:
         entry = {"ts": ts, "v": m["vol"], "p": round(m["price"], 4), "n": 0,
-                 "m": 0.0, "s2": 0.0, "mv": [], "la": 0, "c": m["category"]}
+                 "m": 0.0, "mv": [], "la": 0}
         return entry, {"dt_h": None}
 
     dt_h = (ts - entry["ts"]) / 3600.0
@@ -440,7 +448,7 @@ def observe_market(entry: dict | None, m: dict, ts: float,
         "dt_h": dt_h, "rate": rate, "dp": dp, "dv": dv, "dv_usd": dv_usd,
         "p_prev": entry["p"],
         "impact": impact, "base_impact": entry.get("im", 0.0),
-        "base_mean": entry["m"], "base_var": entry["s2"], "n": entry["n"],
+        "base_mean": entry["m"], "n": entry["n"],
         "recent_moves": list(entry["mv"]),
     }
 
@@ -450,11 +458,9 @@ def observe_market(entry: dict | None, m: dict, ts: float,
 
     alpha = cfg["EWMA_ALPHA"]
     if entry["n"] == 0:
-        entry["m"], entry["s2"] = rate_upd, 0.0
+        entry["m"] = rate_upd
     else:
-        delta = rate_upd - entry["m"]
-        entry["m"] += alpha * delta
-        entry["s2"] = (1 - alpha) * (entry["s2"] + alpha * delta * delta)
+        entry["m"] += alpha * (rate_upd - entry["m"])
     if impact is not None:
         base_im = entry.get("im", 0.0)
         if base_im <= 0:
@@ -465,7 +471,6 @@ def observe_market(entry: dict | None, m: dict, ts: float,
     entry["n"] += 1
     entry["mv"] = (entry["mv"] + [round(abs(dp), 4)])[-cfg["MAX_MOVE_WINDOW"]:]
     entry["ts"], entry["v"], entry["p"] = ts, m["vol"], round(m["price"], 4)
-    entry["c"] = m["category"]
     return entry, obs
 
 
@@ -653,7 +658,11 @@ def detect_large_trades(trades: list[dict], since_ts: float,
         return None
 
     mult_txt = f", {notional / median:.0f}x typical" if median > 0 else ""
-    buys_yes = (t.get("side") == "BUY") == (t.get("outcomeIndex") == 0)
+    # net long YES when buying the Yes leg (outcomeIndex 0) OR selling the
+    # No leg — both push toward YES. The XNOR captures that equivalence.
+    is_buy = t.get("side") == "BUY"
+    is_yes_leg = t.get("outcomeIndex") == 0
+    buys_yes = is_buy == is_yes_leg
     points = round(6 + notional / 500)
     if relative:
         points += 5  # out-of-character for THIS market is extra information
@@ -781,8 +790,11 @@ def title_similarity(a: str, b: str) -> float:
     ta, tb = title_tokens(a), title_tokens(b)
     if not ta or not tb:
         return 0.0
-    na = {t for t in ta if t.isdigit()}
-    nb = {t for t in tb if t.isdigit()}
+    # any token containing a digit is a number — including unit-suffixed
+    # strikes like "150k"/"200k" that a pure-isdigit test would miss and
+    # then wrongly merge as the same story
+    na = {t for t in ta if any(ch.isdigit() for ch in t)}
+    nb = {t for t in tb if any(ch.isdigit() for ch in t)}
     if na and nb and na != nb:
         return 0.0
     return len(ta & tb) / len(ta | tb)
@@ -1595,7 +1607,7 @@ def resolve_open_positions(rows: list[dict], ts: float) -> int:
             try:
                 prices = [safe_float(p) for p in
                           json.loads(m.get("outcomePrices") or "[]")]
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, TypeError):
                 prices = []
             if len(prices) == 2 and 0 < prices[0] < 1:
                 row["last_price"] = f"{side_price(row['side'], prices[0]):.4f}"
@@ -1800,17 +1812,17 @@ def main() -> int:
         entry_price = c["yes_ask"] if side == "yes" else c["no_ask"]
         signal_price = side_price(side, c["price"])
         depth = c["depth_yes_usd"] if side == "yes" else c["depth_no_usd"]
-        htc = hours_until_close(c, ts)
+        hours_to_close = hours_until_close(c, ts)
         fresh_fired = any(s["type"] == "fresh_wallet" for s in c["signals"])
         archetype = is_insider_archetype(c["signals"])
         min_depth = (CFG["GATE_MIN_LIQUIDITY_USD"] if c["platform"] == "poly"
                      else CFG["GATE_MIN_DEPTH_USD"])
         passes, gate_reasons = followability_gate(
-            entry_price, signal_price, depth, htc,
+            entry_price, signal_price, depth, hours_to_close,
             min_depth=min_depth, fresh_exempt=fresh_fired)
         research_rows[c["id"]] = research_row(
             c, ts, mode, False, score, side, entry_price, depth,
-            htc, gate_reasons)
+            hours_to_close, gate_reasons)
 
         # strong = aggregate score, OR the insider archetype (fresh wallet
         # + large same-wallet trade), which the backtest showed flagging
@@ -1830,7 +1842,7 @@ def main() -> int:
             else:
                 alertable.append({**c, "score": score, "side": side,
                                   "entry_price": entry_price, "depth": depth,
-                                  "hours_to_close": htc,
+                                  "hours_to_close": hours_to_close,
                                   "grade": "follow", "sort_key": score + 1000})
         else:  # strong but gated -> MONITOR-grade intel, never a paper trade
             if cooling:
@@ -1838,8 +1850,8 @@ def main() -> int:
             else:
                 monitorable.append({**c, "score": score, "side": side,
                                     "entry_price": entry_price, "depth": depth,
-                                    "hours_to_close": htc, "grade": "monitor",
-                                    "sort_key": score,
+                                    "hours_to_close": hours_to_close,
+                                    "grade": "monitor", "sort_key": score,
                                     "gate_reasons": "; ".join(gate_reasons)})
 
     kept, duplicates = dedup_alerts(alertable + monitorable)
@@ -1912,13 +1924,8 @@ def main() -> int:
         state["markets"][a["state_key"]].update({"la": ts, "lg": "M"})
         if a["id"] in research_rows:
             research_rows[a["id"]]["alerted"] = "M"
-        watches.append({
-            "ts": iso_utc(ts), "platform": a["platform"], "market_id": a["id"],
-            "title": a["title"], "category": a["category"],
-            "score": a["score"],
-            "signals": " + ".join(desc_list), "mode": mode,
-            "reasons": f"MONITOR alert sent; gated: {a['gate_reasons']}",
-        })
+        to_watch(a, a["score"],
+                 [f"MONITOR alert sent; gated: {a['gate_reasons']}"])
 
     # --- 6. minutes guard (may warn or self-throttle) ---
     outlook = check_actions_budget(meta, ts)

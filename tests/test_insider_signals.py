@@ -14,7 +14,7 @@ def impact_obs(dp=0.05, dv=50.0, base_impact=0.0002, n=20, dt_h=1.0):
     return {"dt_h": dt_h, "n": n, "dp": dp, "dv": dv,
             "impact": abs(dp) / dv if dv > 0 else None,
             "base_impact": base_impact, "rate": dv / dt_h,
-            "base_mean": 100.0, "base_var": 100.0, "recent_moves": []}
+            "base_mean": 100.0, "recent_moves": []}
 
 
 # --- price impact per volume -------------------------------------------------

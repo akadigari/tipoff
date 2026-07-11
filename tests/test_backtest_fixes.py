@@ -13,7 +13,7 @@ NOW = 1_780_000_000.0
 def obs(dp=0.0, p_prev=0.50, rate=100.0, dv_usd=1000.0, n=20, dt_h=1.0):
     return {"dt_h": dt_h, "rate": rate, "dp": dp, "dv": rate * dt_h,
             "dv_usd": dv_usd, "p_prev": p_prev, "impact": None,
-            "base_impact": 0.0, "base_mean": 100.0, "base_var": 100.0,
+            "base_impact": 0.0, "base_mean": 100.0,
             "n": n, "recent_moves": [0.01] * 8}
 
 

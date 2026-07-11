@@ -11,11 +11,11 @@ from tipoff import (
 NOW = 1_780_000_000.0
 
 
-def make_obs(rate=100.0, base_mean=100.0, base_var=100.0, n=20,
+def make_obs(rate=100.0, base_mean=100.0, n=20,
              dp=0.0, dt_h=1.0, recent_moves=None):
     return {
         "dt_h": dt_h, "rate": rate, "dp": dp,
-        "base_mean": base_mean, "base_var": base_var, "n": n,
+        "base_mean": base_mean, "n": n,
         "recent_moves": recent_moves if recent_moves is not None
         else [0.01] * 8,
     }

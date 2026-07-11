@@ -34,6 +34,14 @@ def test_similarity_number_veto_different_strikes():
     assert title_similarity(a, b) == 0.0
 
 
+def test_similarity_number_veto_unit_suffixed_strikes():
+    # regression: "150k"/"200k" are single tokens; a pure-isdigit veto
+    # missed them and wrongly merged two distinct strikes (audit finding)
+    a = "Will Bitcoin hit 150k by Dec 31?"
+    b = "Will Bitcoin hit 200k by Dec 31?"
+    assert title_similarity(a, b) == 0.0
+
+
 def test_similarity_zero_for_unrelated():
     assert title_similarity("Will the Fed cut rates?",
                             "Who wins Best Picture at the Oscars?") < 0.2
