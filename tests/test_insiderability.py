@@ -22,10 +22,29 @@ def test_game_outcome_markets_are_none():
         assert insiderability(title, cat) == "none", title
 
 
-def test_generic_sports_without_game_pattern_stays_scannable():
-    # a season-long future isn't a live game; leave it normal
-    assert insiderability("Will the Jets make the playoffs?",
-                          "sports") == "normal"
+def test_play_determined_futures_are_none_too():
+    # tournaments, scorer races, playoff runs: decided on the field —
+    # zero documented insider episodes in any play-determined outcome
+    cases = [
+        ("Will Harry Kane be the top goal scorer at the 2026 FIFA"
+         " World Cup?", "sports"),
+        ("Will Norway reach the Semifinals at the 2026 FIFA World Cup?",
+         "sports"),
+        ("Will the Jets make the playoffs?", "sports"),
+        ("Golden Boot Winner — Erling Haaland", "sports"),
+    ]
+    for title, cat in cases:
+        assert insiderability(title, cat) == "none", title
+
+
+def test_esports_flows_to_none_via_categorize():
+    # esports reach "none" through the real pipeline: categorize() now
+    # recognizes esports titles as sports, and sports outcomes are "none"
+    from tipoff import categorize
+    title = "Will Hanwha Life Esports win MSI 2026?"
+    cat = categorize(title)
+    assert cat == "sports"
+    assert insiderability(title, cat) == "none"
 
 
 def test_sports_decision_markets_stay_hot():
@@ -57,6 +76,57 @@ def test_documented_episode_shapes_are_high():
 def test_plain_markets_are_normal():
     assert insiderability("Will it rain in Miami tomorrow?", "other") == "normal"
     assert insiderability("Bitcoin above $150k on Friday?", "crypto") == "normal"
+
+
+# --- news check ("no public explanation" verification) -------------------------
+
+from tipoff import apply_news_check, count_recent_news, news_query  # noqa: E402
+import tipoff  # noqa: E402
+
+
+def rss(pub_dates):
+    items = "".join(f"<item><title>x</title><pubDate>{d}</pubDate></item>"
+                    for d in pub_dates)
+    return f'<rss version="2.0"><channel>{items}</channel></rss>'
+
+
+def test_news_query_strips_stopwords_and_years():
+    q = news_query("Will Trump pardon Changpeng Zhao in 2025?")
+    assert q == "Trump pardon Changpeng Zhao"
+
+
+def test_count_recent_news_windows_correctly():
+    text = rss(["Fri, 11 Jul 2026 02:00:00 GMT",   # inside 24h of NOW-ish
+                "Tue, 01 Jul 2025 00:00:00 GMT"])  # ancient
+    ts = 1783742400.0  # 2026-07-11 04:00 UTC
+    assert count_recent_news(text, ts, 24.0) == 1
+
+
+def test_count_recent_news_bad_xml_is_zero():
+    assert count_recent_news("not xml at all", NOW, 24.0) == 0
+
+
+def test_apply_news_check_marks_unexplained_and_explained(monkeypatch):
+    counts = {"quiet market move": 0, "loud market move": 5}
+    monkeypatch.setattr(tipoff, "fetch_news_count",
+                        lambda q, ts: counts.get(q))
+    quiet = {"title": "quiet market move", "signals": []}
+    loud = {"title": "loud market move", "signals": []}
+    broken = {"title": "", "signals": []}  # fetch returns None
+    apply_news_check([quiet, loud, broken], NOW)
+    assert any(s["type"] == "no_public_news" for s in quiet["signals"])
+    assert "news_note" not in quiet
+    assert loud["signals"] == [] and "likely reacting" in loud["news_note"]
+    assert broken["signals"] == [] and "news_note" not in broken
+
+
+def test_apply_news_check_respects_budget(monkeypatch):
+    calls = []
+    monkeypatch.setattr(tipoff, "fetch_news_count",
+                        lambda q, ts: calls.append(q) or 0)
+    cands = [{"title": f"market {i}", "signals": []} for i in range(20)]
+    apply_news_check(cands, NOW)
+    assert len(calls) == tipoff.CFG["MAX_NEWS_CHECKS"]
 
 
 # --- scan integration ----------------------------------------------------------

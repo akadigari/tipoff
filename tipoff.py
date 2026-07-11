@@ -209,7 +209,9 @@ SPORTS_RE = re.compile(
     r"\b(nfl|nba|mlb|nhl|ncaa|uefa|fifa|premier league|la liga|serie a"
     r"|grand slam|wimbledon|us open|super bowl|world series|stanley cup"
     r"|f1|formula 1|ufc|boxing|golf|pga|olympic|world cup|touchdown"
-    r"|game \d|vs\.?\s|match|playoff|championship)\b", re.I)
+    r"|game \d|vs\.?\s|match|playoff|championship"
+    r"|esports|league of legends|valorant|dota|counter.?strike|cs2"
+    r"|msi \d{4}|lcs\b|lck\b|overwatch)\b", re.I)
 ENTERTAINMENT_RE = re.compile(
     r"\b(oscars?|academy award|grammy|emmy|golden globe|box office|movie"
     r"|film|album|billboard|spotify|netflix|tv show|season finale|bachelor"
@@ -253,7 +255,11 @@ GAME_OUTCOME_RE = re.compile(
     r"|\bover/under\b|\bo/u\b|\btotal (?:points|goals|runs|sets)\b"
     r"|\b(?:1st|2nd|3rd|4th|first|second) (?:half|quarter|period|set|map)\b"
     r"|\bwin on \d{4}-\d{2}-\d{2}\b|\bwin (?:game|map|set|race) \d\b"
-    r"|\bshots on goal\b|\bpoints scored\b|\bmargin of victory\b", re.I)
+    r"|\bshots on goal\b|\bpoints scored\b|\bmargin of victory\b"
+    r"|\breach the (?:final|semi|quarter)|\bmake the playoffs\b"
+    r"|\btop (?:goal.?scorer|scorer)\b|\bgolden boot\b|\bqualif(?:y|ies)\b"
+    r"|\btop \d+ finish|\bwin the .{0,30}(?:cup|championship|title"
+    r"|tournament|open|series|derby|grand prix)\b", re.I)
 
 DECISION_RE = re.compile(
     r"\b(?:announce|resign|step(?:s|ping)? down|fired?|out as|pardon"
@@ -269,14 +275,16 @@ DECISION_RE = re.compile(
 
 def insiderability(title: str, category: str) -> str:
     """'high' for private-decision markets (where every documented insider
-    episode lived), 'none' for game outcomes (no insider can exist), else
-    'normal'. Sports decision markets — injuries, trades, retirements,
-    awards — stay scannable: those DO leak."""
+    episode lived), 'none' for play-determined sports outcomes (games,
+    tournament runs, scorer races — decided on the field, so no insider can
+    exist; zero documented episodes there), else 'normal'. Sports DECISION
+    markets — injuries, trades, retirements, suspensions — stay 'high':
+    someone in the building always knows first."""
     text = title or ""
     if DECISION_RE.search(text):
         return "high"
     if category == "sports" or GAME_OUTCOME_RE.search(text):
-        return "none" if GAME_OUTCOME_RE.search(text) else "normal"
+        return "none"
     return "normal"
 
 
@@ -770,6 +778,85 @@ def is_insider_archetype(signals: list[dict]) -> bool:
     return "fresh_wallet" in types and "large_trade" in types
 
 
+# --- news check: is there PUBLIC news explaining this move? ---------------
+# An insider move is, by definition, a move BEFORE the news. A strong
+# anomaly with zero recent press coverage is the suspicious shape; the same
+# anomaly with a wall of headlines is just the market reading the paper.
+
+NEWS_STOP = frozenset(
+    "will the a an in on at by of to be for vs and or before after over"
+    " under than with is are does 2025 2026 2027".split())
+
+
+def news_query(title: str) -> str:
+    """First few substantive words of the market title, for a news search."""
+    words = re.findall(r"[a-zA-Z][a-zA-Z'-]+", title or "")
+    picked = [w for w in words if w.lower() not in NEWS_STOP][:6]
+    return " ".join(picked)
+
+
+def count_recent_news(rss_text: str, ts: float, window_h: float) -> int:
+    """Count RSS items published within the window. Pure parse — tested."""
+    from email.utils import parsedate_to_datetime
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(rss_text)
+    except ET.ParseError:
+        return 0
+    cutoff = ts - window_h * 3600
+    count = 0
+    for item in root.iter("item"):
+        pub = item.findtext("pubDate") or ""
+        try:
+            when = parsedate_to_datetime(pub).timestamp()
+        except (ValueError, TypeError):
+            continue
+        if when >= cutoff:
+            count += 1
+    return count
+
+
+def fetch_news_count(query: str, ts: float) -> int | None:
+    """Google News RSS — keyless, serverless-friendly. None on failure
+    (failure must never be mistaken for 'no news')."""
+    if not query:
+        return None
+    try:
+        resp = _session.get(
+            "https://news.google.com/rss/search",
+            params={"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"},
+            timeout=CFG["HTTP_TIMEOUT"])
+        resp.raise_for_status()
+        return count_recent_news(resp.text, ts, CFG["NEWS_WINDOW_H"])
+    except requests.RequestException:
+        return None
+
+
+def apply_news_check(candidates: list[dict], ts: float,
+                     cfg: dict = CFG) -> None:
+    """Press-sweep the strongest alerts (in place, budgeted). Zero coverage
+    -> an 'unexplained move' marker joins the signals (0 points — it's a
+    verification tag, not a detector, but it lands in the ledger's trigger
+    column so its CLV gets graded like everything else). Heavy coverage ->
+    a 'likely public-news reaction' note on the alert."""
+    budget = cfg["MAX_NEWS_CHECKS"]
+    for a in candidates:
+        if budget <= 0:
+            break
+        budget -= 1
+        n = fetch_news_count(news_query(a["title"]), ts)
+        if n is None:
+            continue
+        if n == 0:
+            a["signals"].append({
+                "type": "no_public_news",
+                "desc": "no public news found — unexplained move",
+                "points": 0})
+        elif n >= cfg["NEWS_EXPLAINED_MIN"]:
+            a["news_note"] = (f"{n} recent articles — likely reacting to"
+                              f" public news, not leading it")
+
+
 CHATTER_RE = re.compile(
     r"insider|inside\s+info|leak(?:ed|s)?\b|front.?run|knows?\s+something"
     r"|someone\s+knows|smart\s+money|suspicious\s+(?:volume|buy|bet)"
@@ -1030,6 +1117,8 @@ def format_alert(alert: dict) -> str:
             f" signals · resolves in {window_txt}",
             "⏳ Window open — verify + move.",
         ]
+    if alert.get("news_note"):
+        lines.append(f"📰 {alert['news_note']}")
     if alert.get("url"):
         lines.append(f"🔗 {alert['url']}")
     if alert.get("calib"):
@@ -2090,6 +2179,9 @@ def main() -> int:
     alerts = follows[:max_alerts]
     monitors = monitors[: CFG["MONITOR_MAX_PER_RUN"]]
 
+    # investigator step: is there PUBLIC news explaining these moves?
+    apply_news_check(alerts + monitors, ts)
+
     for w in watches:
         print(f"  WATCH [{w['score']:>3}] {w['title'][:55]} ::"
               f" {w['signals']} :: {w['reasons']}")
@@ -2106,6 +2198,7 @@ def main() -> int:
             "entry_price": a["entry_price"], "category": a["category"],
             "stake_usd": stake, "hours_to_close": a["hours_to_close"],
             "score": a["score"], "url": a["url"], "calib": calib_active,
+            "news_note": a.get("news_note"),
         })
         sent = send_telegram(msg)
         print(f"  ALERT [{a['score']:>3}] {'sent' if sent else 'dry'} :: "
@@ -2141,6 +2234,7 @@ def main() -> int:
             "stake_usd": 0, "hours_to_close": a["hours_to_close"],
             "score": a["score"], "url": a["url"], "calib": calib_active,
             "grade": "monitor", "gate_reasons": a["gate_reasons"],
+            "news_note": a.get("news_note"),
         })
         sent = send_telegram(msg)
         print(f"  MONITOR [{a['score']:>3}] {'sent' if sent else 'dry'} :: "

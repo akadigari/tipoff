@@ -101,10 +101,18 @@ CFG = {
 
     # insiderability: every documented episode happened in a market that
     # resolves on a PRIVATE HUMAN DECISION (committee, government, board,
-    # celebrity, the subject themselves); none happened in game outcomes —
-    # nobody knows a live game's result in advance. Decision markets get a
-    # score bonus; game-outcome markets don't get scanned for signals.
+    # celebrity, the subject themselves); ZERO happened in play-determined
+    # sports outcomes — games, tournament runs, top-scorer races. Decision
+    # markets get a score bonus; play-determined markets aren't scanned.
     "INSIDERABLE_POINTS": 8,
+
+    # news check (Google News RSS, keyless): an insider move is a move
+    # WITHOUT public news to explain it. Strong alerts get a press sweep —
+    # zero recent coverage marks the move unexplained; heavy coverage
+    # labels it a likely public-news reaction.
+    "MAX_NEWS_CHECKS": 8,         # per run, alerts+monitors only
+    "NEWS_WINDOW_H": 24.0,        # articles this recent count
+    "NEWS_EXPLAINED_MIN": 3,      # >= this many -> 'explained by news'
 
     # ------------------------------------------------------------------
     # API budget per run
