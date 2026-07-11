@@ -127,7 +127,7 @@ alerted, raise the relevant signal threshold. Then let normal mode run.
 ⏳ Window open — verify + move.
 ```
 
-### Daily still-alive ping
+### Daily still-alive ping (the health bar)
 
 Once a day (targeting 13:00 UTC ≈ 9am ET) you get one short summary even when
 nothing fired, so silence never means "maybe it's broken":
@@ -136,10 +136,26 @@ nothing fired, so silence never means "maybe it's broken":
 🟢 Tipoff daily check-in — running fine
 Last 24h: 24 scans · 1,654 markets · 0 alerts · 7 watches
 All quiet — nothing strong + followable fired.
+🩺 kalshi 1,175 ✓ · poly 476 ✓ · 1,540 baselines warm · 0 fetch errors (24h)
+⛽ 412/1,800 Actions min (23%) · volume-matched schedule
 📏 calibration week: day 3/7 — running loose, review the watch log
 ```
 
-No ping two days in a row = actually go check the Actions tab.
+The 🩺 line is the health bar: markets per platform (⚠️ if one went dark),
+how many baselines are past warm-up, and API errors over the last day. The
+⛽ line is the minutes fuel gauge.
+
+### When something actually breaks, it tells you — three layers
+
+1. **🔴 Crash alert** — if a run *fails outright*, a workflow-level step
+   (independent of the Python code that just crashed) sends a red Telegram
+   alert with a direct link to the failing run's logs.
+2. **⚠️ Platform-down warning** — if Kalshi or Polymarket returns zero
+   markets while the other still works, you get a warning (at most one per
+   day per platform) and scanning continues one-legged.
+3. **Silence rule** — the only failure that can't message you is GitHub
+   itself not running the workflow. That's why the daily ping exists: **no
+   ping for two days = go look at the Actions tab.**
 
 ## Paper ledger + CLV grading
 
@@ -156,6 +172,31 @@ resolves, the row is graded:
   liquidity. CLV is outcome-independent (a lost bet can still have positive
   CLV) and converges far faster than ROI, which is dominated by variance at
   small sample sizes.
+
+### The research dataset — signals.csv
+
+The paper ledger only grades what *alerted*. [research/signals.csv](research/signals.csv)
+goes further: **every signal candidate** — alerted or filtered — gets a row
+with its full context (signal types, score, side, YES price, 24h volume,
+depth, time to resolution, the exact gate reasons, and the whale wallet
+address when an on-chain trade fired). Then later runs fill in where the
+YES price actually went **1h, 6h, and 24h after the signal** (`p_1h`,
+`p_6h`, `p_24h`; `na` if the market left the universe first).
+
+After a few weeks this becomes a labeled dataset that can answer questions
+the ledger can't:
+
+- Do volume spikes *without* a price jump predict moves (early money we're
+  filtering out), or are they noise?
+- Which category's whales actually move markets — and does the fresh-wallet
+  flag add anything on top of trade size?
+- Is the gate throwing away winners? (compare forward moves of gate-failed
+  vs gate-passed candidates)
+- Do specific wallet addresses show up repeatedly *before* moves? (group by
+  the `wallet` column — a personal smart-money list falls out of the data)
+
+The file is capped at 10,000 rows (oldest fall off) and committed back by
+the bot like everything else, so it accumulates history with zero effort.
 
 ### How to read the per-category verdict
 
@@ -292,6 +333,8 @@ state/baselines.json         per-market EWMA baselines (bot-committed)
 ledger/ledger.csv            every alert, graded on resolution
 ledger/watch_log.csv         signals that fired but were filtered, with reasons
 ledger/REPORT.md             per-category CLV verdict (regenerated each run)
+research/signals.csv         every candidate + 1h/6h/24h forward prices
+docs/PRIOR_ART.md            survey of similar tools + feature roadmap
 ```
 
 ## Known limitations (by design, documented up front)

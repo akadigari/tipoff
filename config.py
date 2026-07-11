@@ -73,6 +73,18 @@ CFG = {
     "THIN_MARKET_VOL24": 10000.0, # 24h volume below this + on-chain signal
                                   # -> extra points (obscure market, big bet)
 
+    # price impact per unit of volume (research-backed: insider trades move
+    # prices ~7-12x more per dollar than skilled-trader flow — Mitts & Ofir)
+    "IMPACT_MULT": 5.0,           # this hour's |move|/volume >= 5x baseline
+    "IMPACT_MIN_MOVE": 0.03,      # and the move itself >= 3 cents
+
+    # wallet behavior (Polymarket): same wallet flagged across scans, and
+    # trades out of character for THAT wallet's own history
+    "REPEAT_ACTOR_WINDOW_D": 14.0,   # repeat flag within this window
+    "WALLET_MEMORY_PRUNE_D": 30.0,   # forget flagged wallets after this
+    "WITHIN_TRADER_MULT": 5.0,       # trade >= 5x wallet's own median size
+    "WITHIN_TRADER_MIN_ROWS": 5,     # need this much history to say so
+
     # cross-platform confirmation: same story moving on both venues
     "CROSS_CONFIRM_POINTS": 10,
     "CROSS_CONFIRM_JACCARD": 0.5, # title-token similarity to call it a twin

@@ -52,7 +52,7 @@ jobs:
         run: |
           git config user.name "tipoff-bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state ledger
+          git add state ledger research
           if git diff --cached --quiet; then
             echo "nothing changed this cycle"
             exit 0
@@ -61,3 +61,17 @@ jobs:
           # another run may have pushed while we scanned; rebase then push
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
           git push
+
+      - name: Alert on failure
+        # A crashed run can't warn you itself — this step fires a red alert
+        # whenever any step above failed, so silence never hides a breakage.
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode text="🔴 Tipoff run FAILED — needs a checkup.
+          Logs: https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            > /dev/null || echo "telegram failure-alert also failed"

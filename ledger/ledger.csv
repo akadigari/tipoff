@@ -1,1 +1,1 @@
-id,ts,platform,market_id,title,category,side,entry_price,stake_usd,score,signals,hours_to_close,mode,status,last_price,resolved_ts,result,roi,clv
+id,ts,platform,market_id,title,category,side,entry_price,stake_usd,score,signals,triggers,hours_to_close,mode,status,last_price,resolved_ts,result,roi,clv
