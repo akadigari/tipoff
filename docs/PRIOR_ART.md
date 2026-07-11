@@ -54,6 +54,11 @@ cross-platform confirmation, thin-market bonus, paper-trading loop.
 
 ## Roadmap (not yet built, in rough priority order)
 
+> **Done since:** coordination detector (≥3 wallets, same side, ≤3s — the
+> Iran signature) shipped; play-determined sports excluded; keyless
+> news-check verification added.
+
+
 1. **Lazy wallet grading + smart-money badge** — when a wallet trips a
    signal, pull its history and compute an OrcaLayer-style badge (win rate
    ≥55% per resolved market, positive PnL, ≥10 resolved), gated by the

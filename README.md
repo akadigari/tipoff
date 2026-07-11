@@ -63,6 +63,7 @@ reviewing the calibration-week logs, not after a single bad beat.
 | Price impact (research-backed) | a ≥3¢ move on volume this market usually absorbs silently — insider trades move prices several times more per dollar than ordinary flow | 15 |
 | Repeat actor | the same wallet flagged again on a later scan (side-flips called out) — one print is noise, pressing is a position | 10 |
 | Within-trader size | the trade is ≥5× that wallet's own median — out of character even if small in absolute terms | 8 |
+| Coordination (Polymarket) | ≥3 **distinct** wallets buying the **same side** within 3 seconds — the documented insider signature (Iran Feb 2026: 8 wallets bought YES in ~2s) that no per-wallet threshold can see, since each wallet stays small individually | 20 |
 | Crowd chatter (Polymarket) | ≥2 distinct commenters crying "insider"/"leak"/"who is buying" on this market in the last 48h while it's moving — the comment section notices before journalists do (deduped per wallet; spam bots don't count twice) | 12 |
 | Decision-market bonus | the market resolves on a **private human decision** (resignation, pardon, award, engagement, military operation, indictment…) — the only place insiders structurally exist; every documented episode in [docs/BACKTEST.md](docs/BACKTEST.md) lived here | 8 |
 

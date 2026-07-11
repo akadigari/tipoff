@@ -90,6 +90,15 @@ CFG = {
     "WITHIN_TRADER_MULT": 5.0,       # trade >= 5x wallet's own median size
     "WITHIN_TRADER_MIN_ROWS": 5,     # need this much history to say so
 
+    # coordination (Polymarket): N distinct wallets buying the SAME side
+    # within a tight window — the documented insider signature (Iran Feb 27:
+    # 8 wallets bought YES within 2 seconds). Invisible to per-wallet
+    # thresholds. Conservative: single-episode evidence, so it corroborates,
+    # never alerts alone; calibration measures its real base rate.
+    "COORD_WINDOW_S": 3.0,           # "same time" window, seconds
+    "COORD_MIN_WALLETS": 3,          # distinct wallets to call it coordinated
+    "COORD_MIN_TRADE_USD": 500.0,    # ignore dust in the cluster
+
     # cross-platform confirmation: same story moving on both venues
     "CROSS_CONFIRM_POINTS": 10,
     "CROSS_CONFIRM_JACCARD": 0.5, # title-token similarity to call it a twin

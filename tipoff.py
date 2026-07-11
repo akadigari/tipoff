@@ -728,6 +728,58 @@ def detect_large_trades(trades: list[dict], since_ts: float,
     }
 
 
+def detect_coordination(trades: list[dict], since_ts: float,
+                        cfg: dict = CFG) -> dict | None:
+    """N distinct wallets buying the SAME side within COORD_WINDOW_S — the
+    coordinated-entry insider signature (Iran Feb 27 2026: eight wallets
+    bought YES within ~2 seconds). Each wallet can individually stay under
+    every threshold, so no per-wallet detector sees this; a sliding time
+    window over the shared trade tape does.
+
+    Conservative by construction (single-episode evidence): distinct
+    wallets only, a dust floor per trade, and it corroborates rather than
+    alerting alone. Direction rides along so choose_side can follow the
+    cluster."""
+    recent = []
+    for t in trades:
+        if safe_float(t.get("timestamp")) <= since_ts:
+            continue
+        notional = safe_float(t.get("size")) * safe_float(t.get("price"))
+        if notional < cfg["COORD_MIN_TRADE_USD"]:
+            continue
+        wallet = t.get("proxyWallet", "")
+        if not wallet:
+            continue
+        buys_yes = (t.get("side") == "BUY") == (t.get("outcomeIndex") == 0)
+        recent.append((safe_float(t.get("timestamp")),
+                       1 if buys_yes else -1, wallet))
+    if len(recent) < cfg["COORD_MIN_WALLETS"]:
+        return None
+
+    window = cfg["COORD_WINDOW_S"]
+    best = None  # (wallet_count, direction)
+    for direction in (1, -1):
+        same = sorted(t for t in recent if t[1] == direction)
+        i = 0
+        for j in range(len(same)):
+            while same[j][0] - same[i][0] > window:
+                i += 1
+            wallets = {same[k][2] for k in range(i, j + 1)}
+            if len(wallets) >= cfg["COORD_MIN_WALLETS"] \
+                    and (best is None or len(wallets) > best[0]):
+                best = (len(wallets), direction)
+    if best is None:
+        return None
+    n, direction = best
+    return {
+        "type": "coordination",
+        "desc": f"{n} wallets bought {'YES' if direction > 0 else 'NO'}"
+                f" within {window:.0f}s (coordinated)",
+        "points": min(20, 5 + 4 * n),
+        "direction": direction,
+    }
+
+
 def is_fresh_wallet(activity_rows: list[dict], fetch_limit: int,
                     ts: float, cfg: dict = CFG) -> bool:
     """A wallet is 'fresh' when we can see its ENTIRE history (fewer rows than
@@ -990,7 +1042,7 @@ def choose_side(signals: list[dict], price_drift: float) -> str:
     wallet's side beats everything (it IS the informed trader), then the
     flagged large trade, then the majority of other directional signals,
     then raw price drift."""
-    for wanted in ("fresh_wallet", "large_trade"):
+    for wanted in ("coordination", "fresh_wallet", "large_trade"):
         for s in signals:
             if s.get("type") == wanted and s.get("direction"):
                 return "yes" if s["direction"] > 0 else "no"
@@ -1941,6 +1993,9 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
         trades = http_get_json(f"{DATA_API_BASE}/trades", {
             "market": m["id"], "limit": 100}) or []
         since = entry["ts"] - (obs["dt_h"] or 1.0) * 3600 if obs.get("dt_h") else ts - 3600
+        coord = detect_coordination(trades, since)
+        if coord:
+            signals.append(coord)
         big = detect_large_trades(trades, since)
         if big:
             signals.append(big)
