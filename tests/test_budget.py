@@ -4,7 +4,7 @@ decisions, skip cadence, cron rewriting, alert wording. Pure parts only."""
 from datetime import datetime, timezone
 
 from tipoff import (
-    CADENCE_CRON, CFG, budget_outlook, decide_eco_n,
+    CADENCE_CRONS, CFG, budget_outlook, decide_eco_n,
     estimate_billable_minutes, format_budget_alert, format_daily_ping,
     month_context, set_cron_cadence, should_skip_run,
 )
@@ -117,23 +117,48 @@ def test_skip_n6_runs_four_times_a_day():
 
 WORKFLOW_SNIPPET = '''on:
   schedule:
-    # Hourly, at :07 — GitHub delays top-of-the-hour crons heavily.
-    - cron: "7 * * * *"
-  workflow_dispatch: {}
+    - cron: "7 0-6,13-23 * * *"
+    - cron: "7 8,11 * * *"
+  workflow_dispatch: {}   # manual button
+
+permissions:
+  contents: write
 '''
 
 
-def test_set_cron_cadence_rewrites_only_cron_line():
+def test_set_cron_cadence_replaces_whole_schedule_block():
     out = set_cron_cadence(WORKFLOW_SNIPPET, 2)
+    assert out.count("- cron:") == 1
     assert '- cron: "7 */2 * * *"' in out
-    assert "workflow_dispatch" in out
-    assert out.count("cron:") == WORKFLOW_SNIPPET.count("cron:")
+    assert "workflow_dispatch" in out and "permissions:" in out
 
 
-def test_set_cron_cadence_roundtrip_back_to_hourly():
+def test_set_cron_cadence_drops_comments_inside_block():
+    text = WORKFLOW_SNIPPET.replace(
+        'schedule:\n', 'schedule:\n    # some note\n')
+    out = set_cron_cadence(text, 3)
+    assert "some note" not in out
+    assert '- cron: "7 */3 * * *"' in out
+
+
+def test_set_cron_cadence_roundtrip_restores_full_schedule():
     slowed = set_cron_cadence(WORKFLOW_SNIPPET, 6)
+    assert slowed.count("- cron:") == 1
     restored = set_cron_cadence(slowed, 1)
-    assert f'- cron: "{CADENCE_CRON[1]}"' in restored
+    for cron in CADENCE_CRONS[1]:
+        assert f'- cron: "{cron}"' in restored
+    assert restored.count("- cron:") == 2
+
+
+def test_set_cron_cadence_matches_real_workflow_file():
+    from pathlib import Path
+    real = (Path(__file__).resolve().parent.parent
+            / ".github" / "workflows" / "tipoff.yml").read_text()
+    for cron in CADENCE_CRONS[1]:
+        assert f'- cron: "{cron}"' in real
+    slowed = set_cron_cadence(real, 2)
+    assert slowed.count("- cron:") == 1
+    assert "Run scanner" in slowed  # rest of the file untouched
 
 
 # --- alert wording ------------------------------------------------------------------

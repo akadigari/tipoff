@@ -194,8 +194,36 @@ instead of sent.
 ### On GitHub Actions
 
 [.github/workflows/tipoff.yml](.github/workflows/tipoff.yml) runs the scanner
-**hourly** (at :07 — GitHub delays top-of-hour crons) and commits the updated
-`state/` + `ledger/` back to the repo, so the repo itself is the database.
+on the volume-matched schedule below and commits the updated `state/` +
+`ledger/` back to the repo, so the repo itself is the database.
+
+## Scan cadence — measured, not guessed
+
+Scanning hourly around the clock spends ~25% of the minutes budget on hours
+where nothing trades. To size the schedule, hour-of-day volume was measured
+(2026-07) across both platforms: 30 top Kalshi markets × 7 days of hourly
+candlesticks, and 29 top Polymarket markets × 72h of on-chain trades — each
+market's distribution normalized before averaging, so no single whale market
+dominates.
+
+| UTC window | Share of traded volume | Cadence |
+|---|---|---|
+| 13:00–06:59 (US morning → late night) | **~89%** | hourly (`7 0-6,13-23 * * *`) |
+| 07:00–12:59 (~3–9am ET dead zone) | ~11% (<2%/hour) | touch-runs at 08:07 + 11:07 |
+
+That's **20 runs/day ≈ 620/month ≈ 700–1,300 billed minutes** (runs bill
+1–2 min each), comfortably inside the 1,800 budget with headroom for cron
+jitter and other repos. The dead-zone gaps never exceed 3h, so the
+price-jump detector (window ≤ 3.5h) stays live around the clock — a jump at
+4am ET is caught by the 08:07 run, usually still inside the catchable gate
+because nothing else is trading either.
+
+Deliberately NOT implemented yet: 30-minute scanning during the hottest
+hours (21:00–03:59 UTC carries ~53% of volume). It would plausibly convert
+some "not catchable" watches into alerts, but it costs ~40% more minutes on
+a hunch. The calibration-week watch log records exactly how often signals
+die at the catchable gate during those hours — if that number turns out
+big, add `- cron: "37 0-3,21-23 * * *"` to the schedule and it's done.
 
 Setup:
 
@@ -206,8 +234,8 @@ Setup:
 
 ## Minutes guard + self-throttling
 
-Hourly runs cost ~900–1,500 of the 2,000 free private-repo Actions minutes
-per month. Running out is the one failure the daily ping can't warn about —
+Running out of Actions minutes is the one failure the daily ping can't warn
+about —
 no minutes means no ping, which looks exactly like "all quiet". So every run
 audits the month's usage and acts before the tank is empty:
 

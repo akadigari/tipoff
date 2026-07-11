@@ -1,10 +1,16 @@
 name: Tipoff scanner
 
+# Volume-matched schedule (measured 2026-07; methodology in README "Scan
+# cadence"): hourly through 13:00-06:59 UTC, the 18-hour block carrying ~89%
+# of traded volume (US day + evening + late night), plus two touch-runs
+# across the 07-12 UTC dead zone (~11% of volume) so no gap exceeds 3h.
+# Minute :07 because GitHub delays top-of-the-hour crons heavily.
+# NOTE: the schedule block below is rewritten by tipoff.py's minutes guard
+# when self-throttling; comments inside it don't survive.
 on:
   schedule:
-    # Hourly, at :07 — GitHub delays top-of-the-hour crons heavily, an
-    # off-peak minute fires closer to on-time.
-    - cron: "7 * * * *"
+    - cron: "7 0-6,13-23 * * *"
+    - cron: "7 8,11 * * *"
   workflow_dispatch: {}   # manual "Run workflow" button for testing
 
 permissions:

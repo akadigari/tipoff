@@ -50,7 +50,9 @@ CFG = {
     # price jump: move since last snapshot
     "PRICE_JUMP_MIN": 0.05,       # >= 5 cents
     "PRICE_JUMP_MED_MULT": 3.0,   # and >= 3x this market's median recent move
-    "PRICE_JUMP_MAX_AGE_H": 3.0,  # measured over a window <= 3h
+    "PRICE_JUMP_MAX_AGE_H": 3.5,  # measured over a window <= 3.5h (the
+                                  # dead-zone cadence gaps 3h; +0.5 absorbs
+                                  # GitHub cron jitter)
     "JUMP_MIN_VOL_DELTA": 20.0,   # phantom guard: a "jump" with no volume
                                   # behind it is a re-quoted book, not news
     "SCHEDULED_NEWS_MIN_H": 12.0, # jump within 12h of close = presumed the

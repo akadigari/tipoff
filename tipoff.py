@@ -828,9 +828,18 @@ def should_ping(meta: dict, ts: float, cfg: dict = CFG) -> bool:
 # The throttle only ever tightens within a month and resets on the 1st.
 
 WORKFLOW_PATH = ".github/workflows/tipoff.yml"
-CADENCE_CRON = {1: "7 * * * *", 2: "7 */2 * * *",
-                3: "7 */3 * * *", 6: "7 */6 * * *"}
-CADENCE_NAME = {1: "hourly", 2: "every 2h", 3: "every 3h", 6: "every 6h"}
+# eco_n=1 is the researched volume-matched schedule (see README "Scan
+# cadence"): hourly through the 18h block carrying ~89% of traded volume,
+# two touch-runs across the 07-12 UTC dead zone. 20 runs/day. Throttled
+# tiers fall back to plain every-Nh crons.
+CADENCE_CRONS = {
+    1: ["7 0-6,13-23 * * *", "7 8,11 * * *"],
+    2: ["7 */2 * * *"],
+    3: ["7 */3 * * *"],
+    6: ["7 */6 * * *"],
+}
+CADENCE_NAME = {1: "volume-matched schedule", 2: "every 2h",
+                3: "every 3h", 6: "every 6h"}
 
 
 def month_context(ts: float) -> tuple[str, str, float]:
@@ -917,8 +926,23 @@ def should_skip_run(eco_n: int, hour: int, cfg: dict = CFG) -> bool:
 
 
 def set_cron_cadence(workflow_text: str, eco_n: int) -> str:
-    return re.sub(r'- cron: "[^"]*"',
-                  f'- cron: "{CADENCE_CRON[eco_n]}"', workflow_text, count=1)
+    """Replace the whole `schedule:` block (all cron lines and any comments
+    inside it) with the cadence for eco_n. Line-based on purpose — regex
+    over multi-line YAML blocks is where bugs live."""
+    out, in_sched = [], False
+    for line in workflow_text.splitlines():
+        stripped = line.strip()
+        if stripped == "schedule:":
+            in_sched = True
+            out.append(line)
+            out.extend(f'    - cron: "{c}"' for c in CADENCE_CRONS[eco_n])
+            continue
+        if in_sched:
+            if stripped.startswith("- cron:") or stripped.startswith("#"):
+                continue  # old schedule content
+            in_sched = False
+        out.append(line)
+    return "\n".join(out) + "\n"
 
 
 def apply_cron_change(eco_n: int, token: str) -> bool:
@@ -993,7 +1017,8 @@ def check_actions_budget(meta: dict, ts: float) -> dict | None:
             restored = b.get("method") != "cron" or \
                 apply_cron_change(1, token_edit)
             if restored:
-                send_telegram("⛽ New month — Tipoff back to hourly scans.")
+                send_telegram("⛽ New month — Tipoff back to the full"
+                              " volume-matched schedule.")
         b.clear()
         b.update({"month": ym, "eco_n": 1, "method": "none", "warned": 0.0})
 
