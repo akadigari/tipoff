@@ -93,6 +93,19 @@ Signals that fire but fail the gate are logged to
 [ledger/watch_log.csv](ledger/watch_log.csv) as `WATCH` **with the exact
 reasons** — the raw material for tuning.
 
+**The gate is advisory for strong signals, silencing only for weak ones.**
+A signal that clears the alert bar but fails the gate sends a distinct
+**👀 MONITOR** Telegram alert carrying the gate reasons — intel, not a
+trade, and never paper-traded. This exists because the backtest
+([docs/BACKTEST.md](docs/BACKTEST.md)) replayed the 2025 Nobel Peace Prize
+leak and found Tipoff scoring it 125/100 for ten straight hours while the
+gate silently killed every alert. Two more backtest-driven rules: the
+**insider archetype** (fresh wallet + large same-wallet trade) alerts
+regardless of aggregate score — on the Iran replay that conjunction alone
+flagged exactly the six documented insider wallets — and alert direction
+always copies **the informed wallet's side**, never the hour's biggest
+print (which on the Iran replay was reliably a wrong-side whale).
+
 One alert per story: multiple legs of the same event spiking on one news item
 are deduped to the top scorer, and a cross-platform twin of an already-sent
 alert is dropped (its confirmation is already priced into the kept one's
@@ -339,6 +352,7 @@ ledger/watch_log.csv         signals that fired but were filtered, with reasons
 ledger/REPORT.md             per-category CLV verdict (regenerated each run)
 research/signals.csv         every candidate + 1h/6h/24h forward prices
 docs/PRIOR_ART.md            survey of similar tools + feature roadmap
+docs/BACKTEST.md             replay vs documented insider episodes (6/6 detected)
 ```
 
 ## Known limitations (by design, documented up front)

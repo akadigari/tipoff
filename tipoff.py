@@ -370,6 +370,17 @@ def market_key(m: dict) -> str:
     return f'{m["platform"]}:{m["id"]}'
 
 
+def hours_until_close(m: dict, ts: float) -> float | None:
+    """None = clock unknown or stale. Platforms serve stale close dates (a
+    gamma endDate was a month in the past on an ACTIVE market in the
+    backtest); a broken clock must read as 'unknown', never as 'resolves
+    now' — the gate treats unknown as pass-with-flag, not fail."""
+    close_ts = m.get("close_ts")
+    if not close_ts or close_ts <= ts:
+        return None
+    return (close_ts - ts) / 3600.0
+
+
 def load_state() -> dict:
     if STATE_FILE.exists():
         try:
@@ -422,8 +433,12 @@ def observe_market(entry: dict | None, m: dict, ts: float,
     rate = dv / dt_h
     dp = m["price"] - entry["p"]
     impact = abs(dp) / dv if dv > 0 else None  # price move per unit traded
+    # dollar volume: poly volume is already USD; kalshi is contracts, and a
+    # contract's notional is roughly its price
+    dv_usd = dv if m.get("platform") == "poly" else dv * max(m["price"], 0.01)
     obs = {
-        "dt_h": dt_h, "rate": rate, "dp": dp, "dv": dv,
+        "dt_h": dt_h, "rate": rate, "dp": dp, "dv": dv, "dv_usd": dv_usd,
+        "p_prev": entry["p"],
         "impact": impact, "base_impact": entry.get("im", 0.0),
         "base_mean": entry["m"], "base_var": entry["s2"], "n": entry["n"],
         "recent_moves": list(entry["mv"]),
@@ -476,8 +491,8 @@ def detect_volume_spike(obs: dict, cfg: dict = CFG) -> dict | None:
         return None
     if obs["n"] < cfg["MIN_OBS"]:
         return None  # warm-up: not enough history to call anything a spike
-    if obs["rate"] * obs["dt_h"] < cfg["VOL_SPIKE_MIN_ABS"]:
-        return None  # tiny absolute delta; multiples of dust are noise
+    if obs.get("dv_usd", obs["rate"] * obs["dt_h"]) < cfg["VOL_SPIKE_MIN_USD"]:
+        return None  # dollar dust guard: multiples of pennies are noise
     mean = obs["base_mean"]
     if mean <= 0:
         return None  # dead market waking up is handled by the abs floor +
@@ -492,25 +507,37 @@ def detect_volume_spike(obs: dict, cfg: dict = CFG) -> dict | None:
     }
 
 
-def detect_price_jump(obs: dict, hours_to_close: float,
+def detect_price_jump(obs: dict, hours_to_close: float | None,
                       cfg: dict = CFG) -> dict | None:
     """Sudden price move vs the market's own recent-move baseline.
 
     Guards:
       - scheduled-news proxy: a jump within SCHEDULED_NEWS_MIN_H of
-        resolution is presumed to be the event itself happening, not
-        informed money arriving early;
+        resolution is presumed to be the event itself happening — UNLESS
+        the repricing is extreme (>=15c or >=5x odds change): the Nobel
+        leak was a 3.7c->39c longshot repricing that no scheduled-drift
+        story explains, and the backtest showed the proxy killing it;
       - phantom guard: a "jump" with almost no volume behind it is a
         re-quoted book (one MM moving), not news.
+    hours_to_close=None means the close timestamp is unknown/stale — an
+    unknown clock must not suppress detection (backtest: a stale endDate
+    silently zeroed a market that contained three documented insiders).
     """
     if obs.get("dt_h") is None or obs["dt_h"] > cfg["PRICE_JUMP_MAX_AGE_H"]:
-        return None
-    if hours_to_close < cfg["SCHEDULED_NEWS_MIN_H"]:
         return None
     if obs["rate"] * obs["dt_h"] < cfg["JUMP_MIN_VOL_DELTA"]:
         return None
     dp = obs["dp"]
     if abs(dp) < cfg["PRICE_JUMP_MIN"]:
+        return None
+    extreme = abs(dp) >= cfg["JUMP_EXTREME_DP"]
+    p_prev = obs.get("p_prev")
+    if not extreme and p_prev and p_prev > 0:
+        p_now = max(p_prev + dp, 0.001)
+        odds_ratio = max(p_now / p_prev, p_prev / p_now)
+        extreme = odds_ratio >= cfg["JUMP_EXTREME_RATIO"]
+    if hours_to_close is not None \
+            and hours_to_close < cfg["SCHEDULED_NEWS_MIN_H"] and not extreme:
         return None
     moves = sorted(obs.get("recent_moves", []))
     if len(moves) >= 4:
@@ -637,6 +664,7 @@ def detect_large_trades(trades: list[dict], since_ts: float,
         "points": min(30, points),
         "direction": 1 if buys_yes else -1,
         "wallet": t.get("proxyWallet", ""),
+        "trader_name": t.get("name") or t.get("pseudonym") or "",
         "notional": notional,
     }
 
@@ -651,12 +679,44 @@ def is_fresh_wallet(activity_rows: list[dict], fetch_limit: int,
     return (ts - earliest) <= cfg["FRESH_WALLET_MAX_AGE_D"] * 86400
 
 
-def fresh_wallet_signal(notional: float) -> dict:
+PSEUDONYM_EPOCH_RE = re.compile(r"^0x[0-9a-fA-F]{6,}-(\d{13})$")
+
+
+def wallet_age_from_name(name: str, ts: float) -> float | None:
+    """Polymarket's default account name encodes creation time as
+    '0xADDR-<epoch-ms>'. When present it gives exact wallet age for free —
+    no /activity call, no history-cap problems. Renamed wallets fall back
+    to the activity check."""
+    match = PSEUDONYM_EPOCH_RE.match((name or "").strip())
+    if not match:
+        return None
+    created = int(match.group(1)) / 1000.0
+    age = ts - created
+    return age if 0 <= age < 20 * 365 * 86400 else None
+
+
+def fresh_wallet_signal(notional: float, direction: int = 0) -> dict:
+    """Direction rides along: the backtest showed followers must copy the
+    FRESH WALLET's side — on the Iran replay every insider hour's largest
+    print was a wrong-side whale, and following it loses 100%."""
     points = 15 + (10 if notional >= 5000 else 0)
-    return {"type": "fresh_wallet",
-            "desc": f"fresh wallet (<{CFG['FRESH_WALLET_MAX_AGE_D']:.0f}d old)"
-                    f" loading up",
-            "points": points}
+    sig = {"type": "fresh_wallet",
+           "desc": f"fresh wallet (<{CFG['FRESH_WALLET_MAX_AGE_D']:.0f}d old)"
+                   f" loading up",
+           "points": points}
+    if direction:
+        sig["direction"] = direction
+    return sig
+
+
+def is_insider_archetype(signals: list[dict]) -> bool:
+    """Fresh wallet + large same-wallet trade = the documented insider
+    archetype. On the Iran replay this conjunction ALONE flagged exactly
+    the six documented insider wallets; in three other episodes it scored
+    40-45 and died under the 55 threshold (bigwinner01, Mikeymike53,
+    romanticpaul). It bypasses the aggregate score — but NOT the gate."""
+    types = {s["type"] for s in signals}
+    return "fresh_wallet" in types and "large_trade" in types
 
 
 CHATTER_RE = re.compile(
@@ -757,7 +817,8 @@ def dedup_alerts(cands: list[dict], cfg: dict = CFG
     kept: list[dict] = []
     dropped: list[tuple[dict, str]] = []
     seen_events: dict = {}
-    for c in sorted(cands, key=lambda x: x["score"], reverse=True):
+    for c in sorted(cands, key=lambda x: x.get("sort_key", x["score"]),
+                    reverse=True):
         ekey = (c["platform"], c.get("event") or c["market_id"])
         if ekey in seen_events:
             dropped.append((c, f"duplicate leg of alerted event: "
@@ -784,17 +845,24 @@ def score_signals(signals: list[dict]) -> int:
 
 
 def choose_side(signals: list[dict], price_drift: float) -> str:
-    """'yes' or 'no' — trust directional signals, fall back to price drift."""
-    directional = [s["direction"] for s in signals if "direction" in s]
+    """'yes' or 'no'. Priority order matters (backtest-proven): the fresh
+    wallet's side beats everything (it IS the informed trader), then the
+    flagged large trade, then the majority of other directional signals,
+    then raw price drift."""
+    for wanted in ("fresh_wallet", "large_trade"):
+        for s in signals:
+            if s.get("type") == wanted and s.get("direction"):
+                return "yes" if s["direction"] > 0 else "no"
+    directional = [s["direction"] for s in signals if s.get("direction")]
     if directional:
         return "yes" if sum(directional) >= 0 else "no"
     return "yes" if price_drift >= 0 else "no"
 
 
 def followability_gate(entry_price: float, signal_price: float,
-                       depth_usd: float, hours_to_close: float,
-                       cfg: dict = CFG,
-                       min_depth: float | None = None) -> tuple[bool, list[str]]:
+                       depth_usd: float, hours_to_close: float | None,
+                       cfg: dict = CFG, min_depth: float | None = None,
+                       fresh_exempt: bool = False) -> tuple[bool, list[str]]:
     """Can this signal still be followed at a fair price, in size, in time?
 
     Returns (passes, reasons_it_failed). Every check is a reason the follow
@@ -806,6 +874,14 @@ def followability_gate(entry_price: float, signal_price: float,
       - no depth -> can't put even a small size on
       - resolves too soon -> no lag window, the event IS the resolution
       - resolves too far out -> capital locked, CLV meaningless for months
+
+    hours_to_close=None = clock unknown/stale (a stale endDate once computed
+    NEGATIVE hours and silently zeroed a market with three documented
+    insiders) -> time checks are skipped, never failed.
+    fresh_exempt skips the max-days cap: fresh-wallet insider markets carry
+    backstop close dates ("...by Dec 31") but resolve on the event — the
+    backtest showed the cap blocking a true insider alert at 94 days out
+    on a market that resolved within weeks.
     """
     reasons = []
     if entry_price > cfg["GATE_MAX_PRICE"]:
@@ -818,10 +894,12 @@ def followability_gate(entry_price: float, signal_price: float,
     floor = cfg["GATE_MIN_DEPTH_USD"] if min_depth is None else min_depth
     if depth_usd < floor:
         reasons.append(f"thin: ${depth_usd:,.0f} depth < ${floor:,.0f}")
-    if hours_to_close < cfg["GATE_MIN_HOURS_TO_CLOSE"]:
-        reasons.append(f"resolves in {hours_to_close:.0f}h — no lag window")
-    if hours_to_close > cfg["GATE_MAX_DAYS_TO_CLOSE"] * 24:
-        reasons.append(f"resolves in {hours_to_close / 24:.0f}d — too slow")
+    if hours_to_close is not None:
+        if hours_to_close < cfg["GATE_MIN_HOURS_TO_CLOSE"]:
+            reasons.append(f"resolves in {hours_to_close:.0f}h — no lag window")
+        if hours_to_close > cfg["GATE_MAX_DAYS_TO_CLOSE"] * 24 \
+                and not fresh_exempt:
+            reasons.append(f"resolves in {hours_to_close / 24:.0f}d — too slow")
     return (not reasons, reasons)
 
 
@@ -854,29 +932,50 @@ def run_mode(calib_active: bool) -> str:
 # ---------------------------------------------------------------------------
 
 ALERT_HEADER = "🚨🚨 ALERT!!! INSIDER TRADING SCOOP 🚨🚨"
+MONITOR_HEADER = "👀 TIPOFF MONITOR — strong signal, gated"
 
 
 def format_alert(alert: dict) -> str:
     """Phone-skimmable alert. `alert` needs: title, platform, market_id,
     signals (list of desc strings), side, entry_price, category, stake_usd,
-    hours_to_close, score, url, and optionally calib (bool)."""
+    hours_to_close (may be None), score, url; optionally calib (bool) and
+    grade ('follow' default, or 'monitor' with gate_reasons).
+
+    MONITOR grade exists because of the backtest: the Nobel-leak replay
+    scored 125 for ten straight hours and the user never saw a thing — a
+    strong signal the gate rejects is still intelligence, it just must not
+    be dressed up as a trade."""
     side = alert["side"].upper()
     price_c = alert["entry_price"] * 100
-    window = alert["hours_to_close"]
-    window_txt = (f"{window:.0f}h" if window < 72 else f"{window / 24:.0f}d")
+    window = alert.get("hours_to_close")
+    window_txt = ("unknown" if window is None
+                  else f"{window:.0f}h" if window < 72
+                  else f"{window / 24:.0f}d")
+    monitor = alert.get("grade") == "monitor"
     lines = [
-        ALERT_HEADER,
+        MONITOR_HEADER if monitor else ALERT_HEADER,
         "",
         f"📍 {alert['title']}",
         f"   [{alert['platform']} · {alert['market_id']}]",
         f"🔔 Signal: {' + '.join(alert['signals'])}",
-        f"💵 Price: {price_c:.0f}c — buy {side}",
+        f"💵 Price: {price_c:.0f}c — {'informed side is' if monitor else 'buy'}"
+        f" {side}",
         f"🏷 Category: {alert['category']}",
-        f"📐 Suggested size: ${alert['stake_usd']:.0f} (paper)",
-        f"⚡ Score {alert['score']}/100 · {len(alert['signals'])}"
-        f" signals · resolves in {window_txt}",
-        "⏳ Window open — verify + move.",
     ]
+    if monitor:
+        lines += [
+            f"⚡ Score {alert['score']}/100 · {len(alert['signals'])}"
+            f" signals · resolves in {window_txt}",
+            f"🚧 Gated: {alert.get('gate_reasons', 'followability failed')}",
+            "👀 Watch it — don't chase. Not a paper trade.",
+        ]
+    else:
+        lines += [
+            f"📐 Suggested size: ${alert['stake_usd']:.0f} (paper)",
+            f"⚡ Score {alert['score']}/100 · {len(alert['signals'])}"
+            f" signals · resolves in {window_txt}",
+            "⏳ Window open — verify + move.",
+        ]
     if alert.get("url"):
         lines.append(f"🔗 {alert['url']}")
     if alert.get("calib"):
@@ -1425,7 +1524,8 @@ def update_research_log(new_rows: list[dict], prices: dict, ts: float) -> int:
 
 def research_row(c: dict, ts: float, mode: str, alerted: bool, score: int,
                  side: str, entry_price: float, depth: float,
-                 hours_to_close: float, gate_reasons: list[str]) -> dict:
+                 hours_to_close: float | None,
+                 gate_reasons: list[str]) -> dict:
     wallet = next((s.get("wallet", "") for s in c["signals"]
                    if s["type"] == "large_trade"), "")
     return {
@@ -1437,7 +1537,8 @@ def research_row(c: dict, ts: float, mode: str, alerted: bool, score: int,
         "side": side,
         "yes_price": f"{c['price']:.4f}", "entry_price": f"{entry_price:.4f}",
         "vol24": f"{c['vol24']:.0f}", "depth": f"{depth:.0f}",
-        "hours_to_close": f"{hours_to_close:.1f}",
+        "hours_to_close": ("" if hours_to_close is None
+                           else f"{hours_to_close:.1f}"),
         "gate_reasons": "; ".join(gate_reasons), "wallet": wallet,
         "p_1h": "", "p_6h": "", "p_24h": "",
     }
@@ -1519,7 +1620,7 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
     """Update one market's baseline and return (entry, signals, obs)."""
     entry, obs = observe_market(entry, m, ts)
     signals = []
-    hours_to_close = ((m["close_ts"] or ts) - ts) / 3600.0
+    hours_to_close = hours_until_close(m, ts)
 
     spike = detect_volume_spike(obs)
     if spike:
@@ -1557,8 +1658,16 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
                 limit = CFG["FRESH_WALLET_ACTIVITY_LIMIT"]
                 activity = http_get_json(f"{DATA_API_BASE}/activity", {
                     "user": wallet, "limit": limit}) or []
-                if is_fresh_wallet(activity, limit, ts):
-                    signals.append(fresh_wallet_signal(big["notional"]))
+                # two freshness sources: the activity feed, plus the exact
+                # creation time hidden in unrenamed default account names
+                # (the activity feed prunes history and misses some)
+                pseudo_age = wallet_age_from_name(big.get("trader_name", ""), ts)
+                fresh = is_fresh_wallet(activity, limit, ts) or (
+                    pseudo_age is not None
+                    and pseudo_age <= CFG["FRESH_WALLET_MAX_AGE_D"] * 86400)
+                if fresh:
+                    signals.append(fresh_wallet_signal(big["notional"],
+                                                       big["direction"]))
                 within = within_trader_signal(activity, big["notional"])
                 if within:
                     signals.append(within)
@@ -1684,45 +1793,66 @@ def main() -> int:
         })
 
     research_rows: dict[str, dict] = {}
+    monitorable = []
     for c in candidates:
         score = score_signals(c["signals"])
         side = choose_side(c["signals"], c["obs"].get("dp", 0.0))
         entry_price = c["yes_ask"] if side == "yes" else c["no_ask"]
         signal_price = side_price(side, c["price"])
         depth = c["depth_yes_usd"] if side == "yes" else c["depth_no_usd"]
-        hours_to_close = ((c["close_ts"] or ts) - ts) / 3600.0
+        htc = hours_until_close(c, ts)
+        fresh_fired = any(s["type"] == "fresh_wallet" for s in c["signals"])
+        archetype = is_insider_archetype(c["signals"])
         min_depth = (CFG["GATE_MIN_LIQUIDITY_USD"] if c["platform"] == "poly"
                      else CFG["GATE_MIN_DEPTH_USD"])
-        passes, reasons = followability_gate(
-            entry_price, signal_price, depth, hours_to_close,
-            min_depth=min_depth)
+        passes, gate_reasons = followability_gate(
+            entry_price, signal_price, depth, htc,
+            min_depth=min_depth, fresh_exempt=fresh_fired)
         research_rows[c["id"]] = research_row(
             c, ts, mode, False, score, side, entry_price, depth,
-            hours_to_close, reasons)
+            htc, gate_reasons)
 
-        if score < alert_score:
-            passes = False
-            reasons = reasons + [f"score {score} < {alert_score}"]
+        # strong = aggregate score, OR the insider archetype (fresh wallet
+        # + large same-wallet trade), which the backtest showed flagging
+        # exactly the documented insider wallets while scoring under 55
+        strong = score >= alert_score or archetype
+        entry_state = state["markets"][c["state_key"]]
+        cooling = ts - safe_float(entry_state.get("la")) < cooldown_h * 3600
+        may_escalate = entry_state.get("lg") == "M"  # monitor -> follow
+
         if c["id"] in holding:
-            passes = False
-            reasons = reasons + ["already holding (open ledger row)"]
-        last_alert = safe_float(state["markets"][c["state_key"]].get("la"))
-        if passes and ts - last_alert < cooldown_h * 3600:
-            passes, reasons = False, ["re-alert cooldown"]
+            to_watch(c, score, gate_reasons + ["already holding (open ledger row)"])
+        elif not strong:
+            to_watch(c, score, gate_reasons + [f"score {score} < {alert_score}"])
+        elif passes:
+            if cooling and not may_escalate:
+                to_watch(c, score, ["re-alert cooldown"])
+            else:
+                alertable.append({**c, "score": score, "side": side,
+                                  "entry_price": entry_price, "depth": depth,
+                                  "hours_to_close": htc,
+                                  "grade": "follow", "sort_key": score + 1000})
+        else:  # strong but gated -> MONITOR-grade intel, never a paper trade
+            if cooling:
+                to_watch(c, score, ["re-alert cooldown (monitor)"])
+            else:
+                monitorable.append({**c, "score": score, "side": side,
+                                    "entry_price": entry_price, "depth": depth,
+                                    "hours_to_close": htc, "grade": "monitor",
+                                    "sort_key": score,
+                                    "gate_reasons": "; ".join(gate_reasons)})
 
-        if passes:
-            alertable.append({**c, "score": score, "side": side,
-                              "entry_price": entry_price, "depth": depth,
-                              "hours_to_close": hours_to_close})
-        else:
-            to_watch(c, score, reasons)
-
-    kept, duplicates = dedup_alerts(alertable)
+    kept, duplicates = dedup_alerts(alertable + monitorable)
     for c, reason in duplicates:
         to_watch(c, c["score"], [reason])
-    for c in kept[max_alerts:]:
+    follows = [c for c in kept if c["grade"] == "follow"]
+    monitors = [c for c in kept if c["grade"] == "monitor"]
+    for c in follows[max_alerts:]:
         to_watch(c, c["score"], ["alert cap for this run"])
-    alerts = kept[:max_alerts]
+    for c in monitors[CFG["MONITOR_MAX_PER_RUN"]:]:
+        to_watch(c, c["score"], ["monitor cap for this run"])
+    alerts = follows[:max_alerts]
+    monitors = monitors[: CFG["MONITOR_MAX_PER_RUN"]]
 
     for w in watches:
         print(f"  WATCH [{w['score']:>3}] {w['title'][:55]} ::"
@@ -1744,7 +1874,7 @@ def main() -> int:
         sent = send_telegram(msg)
         print(f"  ALERT [{a['score']:>3}] {'sent' if sent else 'dry'} :: "
               f"{a['title'][:55]} ({a['side']} @ {a['entry_price']:.2f})")
-        state["markets"][a["state_key"]]["la"] = ts
+        state["markets"][a["state_key"]].update({"la": ts, "lg": "F"})
         if a["id"] in research_rows:
             research_rows[a["id"]]["alerted"] = "1"
         ledger.append({
@@ -1755,11 +1885,40 @@ def main() -> int:
             "stake_usd": f"{stake:.0f}", "score": str(a["score"]),
             "signals": " + ".join(desc_list),
             "triggers": "+".join(sorted({s["type"] for s in a["signals"]})),
-            "hours_to_close": f"{a['hours_to_close']:.1f}", "mode": mode,
+            "hours_to_close": ("" if a["hours_to_close"] is None
+                               else f"{a['hours_to_close']:.1f}"),
+            "mode": mode,
             "status": "open", "last_price": f"{a['entry_price']:.4f}",
             "resolved_ts": "", "result": "", "roi": "", "clv": "",
         })
         next_id += 1
+
+    # MONITOR-grade: strong-but-gated intel. Telegram + research log only —
+    # never a paper trade (the gate said a follow would lose; grading it
+    # as one would poison the CLV verdict).
+    for a in monitors:
+        desc_list = [s["desc"] for s in a["signals"]]
+        msg = format_alert({
+            "title": a["title"], "platform": a["platform"],
+            "market_id": a["id"], "signals": desc_list, "side": a["side"],
+            "entry_price": a["entry_price"], "category": a["category"],
+            "stake_usd": 0, "hours_to_close": a["hours_to_close"],
+            "score": a["score"], "url": a["url"], "calib": calib_active,
+            "grade": "monitor", "gate_reasons": a["gate_reasons"],
+        })
+        sent = send_telegram(msg)
+        print(f"  MONITOR [{a['score']:>3}] {'sent' if sent else 'dry'} :: "
+              f"{a['title'][:55]} :: gated: {a['gate_reasons']}")
+        state["markets"][a["state_key"]].update({"la": ts, "lg": "M"})
+        if a["id"] in research_rows:
+            research_rows[a["id"]]["alerted"] = "M"
+        watches.append({
+            "ts": iso_utc(ts), "platform": a["platform"], "market_id": a["id"],
+            "title": a["title"], "category": a["category"],
+            "score": a["score"],
+            "signals": " + ".join(desc_list), "mode": mode,
+            "reasons": f"MONITOR alert sent; gated: {a['gate_reasons']}",
+        })
 
     # --- 6. minutes guard (may warn or self-throttle) ---
     outlook = check_actions_budget(meta, ts)

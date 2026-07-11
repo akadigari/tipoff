@@ -45,7 +45,9 @@ CFG = {
     # ------------------------------------------------------------------
     # volume spike: this hour's rate vs the market's own baseline
     "VOL_SPIKE_MULT": 3.0,        # fire at >= 3x trailing baseline
-    "VOL_SPIKE_MIN_ABS": 300.0,   # ...and >= this absolute delta (dust guard)
+    "VOL_SPIKE_MIN_USD": 500.0,   # ...and >= this DOLLAR delta (backtest:
+                                  # a share floor is $2 on a penny market
+                                  # and noise-fired 18x on the Nobel replay)
 
     # price jump: move since last snapshot
     "PRICE_JUMP_MIN": 0.05,       # >= 5 cents
@@ -57,6 +59,9 @@ CFG = {
                                   # behind it is a re-quoted book, not news
     "SCHEDULED_NEWS_MIN_H": 12.0, # jump within 12h of close = presumed the
                                   # event itself happening, not early money
+    "JUMP_EXTREME_DP": 0.15,      # ...UNLESS the repricing is extreme: a
+    "JUMP_EXTREME_RATIO": 5.0,    # >=15c move or >=5x odds change is never
+                                  # scheduled drift (Nobel leak: 3.7c->39c)
 
     # large on-chain trade (Polymarket)
     "LARGE_TRADE_USD": 2000.0,    # absolute path: single trade >= $2k
@@ -120,6 +125,7 @@ CFG = {
     "ALERT_SCORE": 55,            # normal mode: min score to alert
     "REALERT_COOLDOWN_H": 48.0,   # per-market cooldown
     "MAX_ALERTS_PER_RUN": 5,
+    "MONITOR_MAX_PER_RUN": 3,     # gate-failed-but-strong 👀 alerts per run
     "PAPER_STAKE_BASE": 25.0,     # suggested paper size ($)
 
     # ------------------------------------------------------------------
