@@ -1,1 +1,7 @@
 ts,platform,market_id,title,category,score,signals,mode,reasons
+2026-07-11T05:10:28Z,kalshi,KXLOVEISLANDUSARANK-26AUG31R3-KAZA,Love Island USA S8: 3rd place couple — Kayda and Zach,entertainment,16,price jump -5c in 0.1h,calib,thin: $22 depth < $500; score 16 < 40
+2026-07-11T05:10:28Z,kalshi,KXWORLDNEWSMENTION-26JUL10-CHAR,What will David Muir say during ABC World News Tonight? — Charlie / Kirk,other,35,price jump -12c in 0.1h,calib,not catchable: entry 4c above signal; thin: $12 depth < $500; score 35 < 40
+2026-07-11T05:10:28Z,kalshi,KXTRUMPSAYCOMPANY-26AUG01-GOOG,What companies will Trump say in July? — Google / GOOG / GOOGL,other,35,price jump -38c in 0.1h,calib,thin: $22 depth < $500; score 35 < 40
+2026-07-11T05:10:28Z,kalshi,KXFIRSTHURRICANE-26DEC01EPAC-ELI,What will be the name of the first hurricane in the Eastern Pacific this year? — Elida,other,19,price jump +6c in 0.1h,calib,thin: $137 depth < $500; resolves in 143d — too slow; score 19 < 40
+2026-07-11T05:10:28Z,poly,0xd25ca4fc73273e5d4b6bea24b4400fdfb63a46948e5a3f1873e861f1cb08aa64,"Will ""Moana"" Opening Weekend Box Office be greater than 44m?",entertainment,21,price jump +6c in 0.1h,calib,score 21 < 40
+2026-07-11T05:10:28Z,poly,0x204266528664e23d76b74cfd83341c5aadd5ec9715c0a9be485c7a1b9b051a73,"Will ""Moana"" Opening Weekend Box Office be between 39m and 44m?",entertainment,19,price jump -6c in 0.1h,calib,score 19 < 40
