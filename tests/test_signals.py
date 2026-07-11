@@ -280,5 +280,13 @@ def test_categorize_keywords_fallback():
     assert categorize("Will the ceasefire hold through August?") == "politics"
 
 
+def test_categorize_geopolitics_and_conflict():
+    # the Iran/Hormuz cluster was landing in "other" without these
+    assert categorize("Iran military action against a Gulf State?") == "politics"
+    assert categorize("Strait of Hormuz traffic returns to normal?") == "politics"
+    assert categorize("US-Iran Final Nuclear Deal by August 18?") == "politics"
+    assert categorize("Will Russia launch airstrikes on Kyiv?") == "politics"
+
+
 def test_categorize_other_when_unknown():
     assert categorize("Will it rain in Miami tomorrow?") == "other"

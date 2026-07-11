@@ -66,6 +66,7 @@ STATE_FILE = ROOT / "state" / "baselines.json"
 LEDGER_FILE = ROOT / "ledger" / "ledger.csv"
 WATCH_FILE = ROOT / "ledger" / "watch_log.csv"
 REPORT_FILE = ROOT / "ledger" / "REPORT.md"
+CALIB_REPORT_FILE = ROOT / "ledger" / "CALIBRATION.md"
 RESEARCH_FILE = ROOT / "research" / "signals.csv"
 
 KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2"
@@ -79,6 +80,8 @@ LEDGER_COLUMNS = [
     "entry_price", "stake_usd", "score", "signals", "triggers",
     "hours_to_close", "mode", "status", "last_price", "resolved_ts",
     "result", "roi", "clv",
+    "read",  # informed-flow read on resolution: informed-like /
+             # early-but-wrong / late-money / neutral
 ]
 
 WATCH_COLUMNS = [
@@ -214,7 +217,9 @@ ENTERTAINMENT_RE = re.compile(
 POLITICS_RE = re.compile(
     r"\b(election|president|senate|congress|governor|parliament|prime minister"
     r"|nominee|impeach|cabinet|supreme court|tariff|executive order|veto"
-    r"|legislation|mayor|referendum|coalition|geopolit|ceasefire|treaty)\b", re.I)
+    r"|legislation|mayor|referendum|coalition|geopolit|ceasefire|treaty"
+    r"|military (?:action|operation)|air ?strikes?|missile|invasion|troops"
+    r"|sanctions?|blockade|nuclear (?:deal|program)|strait of hormuz)\b", re.I)
 
 
 def categorize(title: str, platform_category: str = "") -> str:
@@ -1351,6 +1356,7 @@ def read_ledger() -> list[dict]:
     for r in rows:  # schema migration for rows written before newer columns
         r.setdefault("mode", "normal")
         r.setdefault("triggers", "")
+        r.setdefault("read", "")
     return rows
 
 
@@ -1376,12 +1382,35 @@ def grade_row(row: dict, result: str, ts: float) -> None:
     row["result"] = result
     if result == "void":
         row["status"], row["roi"], row["clv"] = "void", "0.0", "0.0"
+        row["read"] = ""
         return
     won = (result == row["side"])
     row["status"] = "won" if won else "lost"
     row["roi"] = f"{((1.0 - entry) / entry) if won else -1.0:.4f}"
     last = safe_float(row.get("last_price"), entry)
-    row["clv"] = f"{last - entry:.4f}"
+    clv = last - entry
+    row["clv"] = f"{clv:.4f}"
+    row["read"] = informed_read(won, clv)
+
+
+def informed_read(won: bool, clv: float) -> str:
+    """Was the alert actually informed money, judged in hindsight?
+
+    Outcome and information are different axes: a bet can WIN by luck while
+    the line said you were late, and can LOSE while the line proves the
+    signal was real. CLV is the information axis:
+      informed-like    won  AND the line kept moving our way (clv >= +5c)
+      early-but-wrong  lost BUT the line moved our way — real signal,
+                       unlucky outcome (still evidence of informed flow)
+      late-money       the line moved against us after entry (clv <= -2c) —
+                       we were the exit liquidity, whatever the outcome
+      neutral          everything else (no informational verdict)
+    """
+    if clv >= 0.05:
+        return "informed-like" if won else "early-but-wrong"
+    if clv <= -0.02:
+        return "late-money"
+    return "neutral"
 
 
 def verdict_rows(rows: list[dict]) -> list[dict]:
@@ -1484,6 +1513,17 @@ def write_report(rows: list[dict], ts: float) -> None:
             f"| {cat} | {b['alerts']} | {b['open']} | {b['graded']} "
             f"| {b['win_rate'] * 100:.0f}% | {b['avg_roi'] * 100:+.1f}% "
             f"| {b['avg_clv'] * 100:+.1f}c | {b['verdict']} |")
+    graded_rows = [r for r in scored if r["status"] in ("won", "lost")]
+    if graded_rows:
+        reads = read_counts(graded_rows)
+        lines += [
+            "",
+            f"**Informed-flow reads** (was the alert actually informed money,"
+            f" judged by where the line went): {reads['informed-like']}"
+            f" informed-like · {reads['early-but-wrong']} early-but-wrong"
+            f" (real signal, unlucky outcome) · {reads['late-money']}"
+            f" late-money · {reads['neutral']} neutral",
+        ]
     triggers = compute_trigger_report(scored)
     if triggers:
         lines += [
@@ -1505,6 +1545,123 @@ def write_report(rows: list[dict], ts: float) -> None:
                 f"| {b['verdict']} |")
     REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
     REPORT_FILE.write_text("\n".join(lines) + "\n")
+
+
+def watch_reason_histogram(watch_rows: list[dict]) -> list[tuple[str, int]]:
+    """Top filter reasons across the watch log — the tuning signal: what is
+    the net actually rejecting, and does that match intent?"""
+    counts: dict[str, int] = {}
+    for w in watch_rows:
+        for reason in (w.get("reasons") or "").split(";"):
+            key = reason.strip().split(":")[0].strip()
+            if key:
+                counts[key] = counts.get(key, 0) + 1
+    return sorted(counts.items(), key=lambda kv: -kv[1])
+
+
+def read_counts(rows: list[dict]) -> dict:
+    counts = {"informed-like": 0, "early-but-wrong": 0,
+              "late-money": 0, "neutral": 0}
+    for r in rows:
+        if r.get("read") in counts:
+            counts[r["read"]] += 1
+    return counts
+
+
+def write_calibration_report(ledger: list[dict], watch_rows: list[dict],
+                             research_rows: list[dict], meta: dict,
+                             ts: float) -> str:
+    """One-time review written when calibration week ends. Everything here
+    INCLUDES calibration-mode alerts (that's the point — reviewing what the
+    loose week caught) unlike REPORT.md, which excludes them. Returns a
+    short Telegram summary."""
+    follows = [r for r in ledger]
+    graded = [r for r in ledger if r["status"] in ("won", "lost")]
+    wins = sum(r["status"] == "won" for r in graded)
+    monitors = sum(1 for r in research_rows if r.get("alerted") == "M")
+    avg_clv = (sum(safe_float(r["clv"]) for r in graded) / len(graded)
+               if graded else 0.0)
+    avg_roi = (sum(safe_float(r["roi"]) for r in graded) / len(graded)
+               if graded else 0.0)
+    reads = read_counts(graded)
+    histogram = watch_reason_histogram(watch_rows)
+    start = meta.get("first_run_ts")
+
+    lines = [
+        "# Calibration week review",
+        "",
+        f"_Auto-generated {iso_utc(ts)}. Covers"
+        f" {iso_utc(start) if start else '?'} → {iso_utc(ts)}. Unlike"
+        f" REPORT.md, calibration-mode alerts ARE included here — this is"
+        f" the tuning review, not the pre-registered verdict._",
+        "",
+        "## Totals",
+        "",
+        f"- **{len(follows)} paper positions** ({monitors} additional"
+        f" MONITOR-grade alerts, never traded)",
+        f"- **Graded: {len(graded)}** — {wins}W–{len(graded) - wins}L,"
+        f" avg ROI {avg_roi * 100:+.1f}%, avg CLV {avg_clv * 100:+.1f}c",
+        f"- Informed-flow reads: {reads['informed-like']} informed-like ·"
+        f" {reads['early-but-wrong']} early-but-wrong ·"
+        f" {reads['late-money']} late-money · {reads['neutral']} neutral",
+        f"- {len(research_rows)} research candidates logged;"
+        f" {len(watch_rows)} watch entries",
+        "",
+        "## What the filters rejected (top reasons)",
+        "",
+        "| Reason | Count |",
+        "|---|---|",
+    ]
+    lines += [f"| {k} | {v} |" for k, v in histogram[:12]]
+    lines += [
+        "",
+        "## Per-category (calibration included)",
+        "",
+        "| Category | Alerts | Graded | Win% | Avg ROI | Avg CLV |",
+        "|---|---|---|---|---|---|",
+    ]
+    stats = compute_report(ledger)
+    for cat in list(CATEGORIES) + ["ALL"]:
+        b = stats[cat]
+        lines.append(
+            f"| {cat} | {b['alerts']} | {b['graded']}"
+            f" | {b['win_rate'] * 100:.0f}% | {b['avg_roi'] * 100:+.1f}%"
+            f" | {b['avg_clv'] * 100:+.1f}c |")
+    triggers = compute_trigger_report(ledger)
+    if triggers:
+        lines += ["", "## Per-trigger (calibration included)", "",
+                  "| Trigger | Graded | Win% | Avg CLV |", "|---|---|---|---|"]
+        for trig in sorted(triggers, key=lambda t: -triggers[t]["graded"]):
+            b = triggers[trig]
+            lines.append(f"| {trig} | {b['graded']}"
+                         f" | {b['win_rate'] * 100:.0f}%"
+                         f" | {b['avg_clv'] * 100:+.1f}c |")
+    lines += [
+        "",
+        "## How to use this",
+        "",
+        "1. Sort the ledger by `read`: `early-but-wrong` rows are real",
+        "   signals with unlucky outcomes — the archetype to protect.",
+        "   `late-money` rows are what to filter harder.",
+        "2. If good alerts died in the top filter reasons above, loosen",
+        "   that one gate value in config.py; if junk alerted, raise the",
+        "   relevant signal threshold.",
+        "3. Normal mode (score >= 55) is now live; the pre-registered",
+        "   verdict accumulates in REPORT.md from here on.",
+    ]
+    CALIB_REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CALIB_REPORT_FILE.write_text("\n".join(lines) + "\n")
+
+    top = ", ".join(f"{k} ({v})" for k, v in histogram[:3])
+    return (f"📏 Calibration week complete!\n"
+            f"{len(follows)} paper alerts + {monitors} monitors ·"
+            f" graded {wins}W–{len(graded) - wins}L ·"
+            f" avg CLV {avg_clv * 100:+.1f}c\n"
+            f"Reads: {reads['informed-like']} informed-like ·"
+            f" {reads['early-but-wrong']} early-but-wrong ·"
+            f" {reads['late-money']} late-money\n"
+            f"Top filters: {top}\n"
+            f"Full review: ledger/CALIBRATION.md — normal mode is live.")
 
 
 def append_watch_log(entries: list[dict]) -> None:
@@ -1802,6 +1959,24 @@ def main() -> int:
     cooldown_h = CFG["CALIB_COOLDOWN_H"] if calib_active else CFG["REALERT_COOLDOWN_H"]
 
     ledger = read_ledger()
+
+    # one-time calibration-week review: fires on the first run AFTER the
+    # loose week ends, then never again
+    if not calib_active and meta.get("first_run_ts") \
+            and not meta.get("calib_reported"):
+        watch_rows = []
+        if WATCH_FILE.exists():
+            with WATCH_FILE.open(newline="") as fh:
+                watch_rows = list(csv.DictReader(fh))
+        research_rows = []
+        if RESEARCH_FILE.exists():
+            with RESEARCH_FILE.open(newline="") as fh:
+                research_rows = list(csv.DictReader(fh))
+        summary = write_calibration_report(ledger, watch_rows,
+                                           research_rows, meta, ts)
+        send_telegram(summary)
+        meta["calib_reported"] = iso_utc(ts)
+        print("  calibration week review written to ledger/CALIBRATION.md")
 
     # --- 1. grade yesterday's calls before making today's ---
     graded = resolve_open_positions(ledger, ts)
