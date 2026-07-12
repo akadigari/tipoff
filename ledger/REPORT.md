@@ -1,6 +1,6 @@
 # Tipoff — paper-trading report
 
-_Auto-generated 2026-07-12T03:50:10Z. 67 alerts ledgered (67 from calibration week, excluded from the verdict stats below).
+_Auto-generated 2026-07-12T06:43:12Z. 69 alerts ledgered (69 from calibration week, excluded from the verdict stats below).
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
