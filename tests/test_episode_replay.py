@@ -24,7 +24,7 @@ def load(name):
 def replay(series, close_ts, platform="poly"):
     """Feed a real hourly series through production observe_market exactly as
     a live run would, returning per-hour (market, obs, signals). This is the
-    real code path — same baseline math, same detectors."""
+    real code path: same baseline math, same detectors."""
     entry = None
     out = []
     for bar in series:
@@ -51,7 +51,7 @@ def replay(series, close_ts, platform="poly"):
 
 def test_nobel_bot_flags_the_leak_hour():
     series = load("nobel_2025_machado")
-    # scheduled close was ~1-13h out during the anomaly (near resolution) —
+    # scheduled close was ~1-13h out during the anomaly (near resolution):
     # the exact condition that silently gated this to death before the fix
     close_ts = series[-1]["ts"]
     result = replay(series, close_ts)
@@ -60,7 +60,7 @@ def test_nobel_bot_flags_the_leak_hour():
     leak_i = next(i for i, r in enumerate(result) if r["bar"]["price"] > 0.30)
     leak = result[leak_i]
 
-    # the bot MUST produce signals here — this is the whole point
+    # the bot MUST produce signals here: this is the whole point
     assert leak["signals"], "bot saw nothing on the documented Nobel leak hour"
     fired = {s["type"] for s in leak["signals"]}
     # a 10x longshot repricing on huge volume is spike + jump
@@ -72,7 +72,7 @@ def test_nobel_bot_flags_the_leak_hour():
 
 
 def test_nobel_quiet_days_stay_silent():
-    # the 1.7% plateau before the leak must NOT fire — no false positives on
+    # the 1.7% plateau before the leak must NOT fire: no false positives on
     # the boring hours, or the signal means nothing
     series = load("nobel_2025_machado")
     result = replay(series, series[-1]["ts"])

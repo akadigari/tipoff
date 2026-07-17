@@ -63,7 +63,7 @@ jobs:
           git push
 
       - name: Alert on failure
-        # A crashed run can't warn you itself — this step fires a red alert
+        # A crashed run can't warn you itself: this step fires a red alert
         # whenever any step above failed, so silence never hides a breakage.
         if: failure()
         env:

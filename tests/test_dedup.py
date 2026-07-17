@@ -28,7 +28,7 @@ def test_similarity_high_for_same_story():
 
 
 def test_similarity_number_veto_different_strikes():
-    # same family, different strikes — must NOT be treated as one story
+    # same family, different strikes: must NOT be treated as one story
     a = "Will Bitcoin hit $150000 by December 31?"
     b = "Will Bitcoin hit $200000 by December 31?"
     assert title_similarity(a, b) == 0.0

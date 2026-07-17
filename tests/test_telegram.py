@@ -39,7 +39,7 @@ def test_required_facts_each_on_own_line():
     assert any(ln.startswith("💵 Price: 62c") for ln in lines)
     assert any(ln.startswith("🏷 Category: politics") for ln in lines)
     assert any(ln.startswith("📐 Suggested size: $50") for ln in lines)
-    assert any("Window open — verify + move." in ln for ln in lines)
+    assert any("Window open: verify + move." in ln for ln in lines)
 
 
 def test_side_is_explicit():
@@ -92,7 +92,7 @@ def test_ping_active_day_with_book():
     msg = format_daily_ping(ping_stats(alerts=2, graded=5, wins=3, losses=2,
                                        open_positions=4, avg_clv=0.012))
     assert "2 alerts" in msg
-    assert "5 graded (3W–2L, avg CLV +1.2c)" in msg
+    assert "5 graded (3W-2L, avg CLV +1.2c)" in msg
     assert "All quiet" not in msg
 
 

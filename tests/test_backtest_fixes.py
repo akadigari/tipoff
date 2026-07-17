@@ -142,7 +142,7 @@ def monitor_alert(**overrides):
             "signals": ["fresh wallet loading up", "$5,000 single trade"],
             "side": "yes", "entry_price": 0.39, "category": "politics",
             "stake_usd": 0, "hours_to_close": 13.0, "score": 88, "url": "",
-            "grade": "monitor", "gate_reasons": "resolves in 13h — no lag window"}
+            "grade": "monitor", "gate_reasons": "resolves in 13h, no lag window"}
     base.update(overrides)
     return base
 

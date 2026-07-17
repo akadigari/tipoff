@@ -1,4 +1,4 @@
-"""Research dataset: forward-return filling and row construction — the data
+"""Research dataset: forward-return filling and row construction, the data
 that later answers 'which signals actually predict moves'."""
 
 from tipoff import (

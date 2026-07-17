@@ -1,4 +1,4 @@
-# Secrets — never committed. All keys live in GitHub Actions secrets;
+# Secrets: never committed. All keys live in GitHub Actions secrets;
 # locally they go in .env, which stays on this machine.
 .env
 .env.*

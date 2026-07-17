@@ -1,4 +1,4 @@
-"""Coordination detector — N distinct wallets buying the same side within a
+"""Coordination detector: N distinct wallets buying the same side within a
 tight window. The documented insider signature (Iran Feb 2026: 8 wallets,
 same 2 seconds) that no per-wallet threshold can see."""
 
@@ -34,7 +34,7 @@ def test_same_wallet_repeated_is_not_coordination():
 
 
 def test_spread_out_trades_do_not_coordinate():
-    # three wallets but minutes apart — not a coordinated burst
+    # three wallets but minutes apart, not a coordinated burst
     trades = [trade("0xa", 0), trade("0xb", 120), trade("0xc", 300)]
     assert detect_coordination(trades, since_ts=NOW - 1000) is None
 
@@ -72,7 +72,7 @@ def test_needs_min_wallets():
 
 
 def test_two_clusters_far_apart_still_detected():
-    # a NO cluster early, a bigger YES cluster later — report the bigger
+    # a NO cluster early, a bigger YES cluster later: report the bigger
     trades = [trade("0xa", 0, side="SELL"), trade("0xb", 1, side="SELL"),
               trade("0xc", 2, side="SELL"),
               trade("0xd", 500), trade("0xe", 501),
@@ -85,7 +85,7 @@ def test_two_clusters_far_apart_still_detected():
 # --- integration with side selection ------------------------------------------
 
 def test_choose_side_prioritizes_coordination():
-    # coordination points YES; a lone large trade points NO — follow the crowd
+    # coordination points YES; a lone large trade points NO: follow the crowd
     signals = [{"type": "large_trade", "direction": -1},
                {"type": "coordination", "direction": 1}]
     assert choose_side(signals, price_drift=-0.1) == "yes"

@@ -51,7 +51,7 @@ def test_clv_positive_when_line_moved_our_way():
 
 
 def test_clv_negative_when_we_were_exit_liquidity():
-    # entered at 0.60, line faded to 0.50 — late even though it WON
+    # entered at 0.60, line faded to 0.50: late even though it WON
     r = row(last_price="0.5000")
     grade_row(r, "yes", NOW)
     assert r["status"] == "won"

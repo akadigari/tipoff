@@ -17,7 +17,7 @@ def test_won_and_line_kept_moving_is_informed():
 
 
 def test_lost_but_line_moved_our_way_is_early_but_wrong():
-    # a real signal with an unlucky outcome — evidence of informed flow
+    # a real signal with an unlucky outcome: evidence of informed flow
     assert informed_read(won=False, clv=0.08) == "early-but-wrong"
 
 
@@ -98,12 +98,12 @@ def test_calibration_report_content_and_summary(tmp_path, monkeypatch):
     text = (tmp_path / "CALIBRATION.md").read_text()
     assert "# Calibration week review" in text
     assert "3 paper positions" in text and "1 additional MONITOR" in text
-    assert "1W–1L" in text
+    assert "1W-1L" in text
     assert "| thin | 2 |" in text
     assert "1 informed-like" in text and "1 early-but-wrong" in text
 
     assert summary.startswith("📏 Calibration week complete")
-    assert "1W–1L" in summary and "CALIBRATION.md" in summary
+    assert "1W-1L" in summary and "CALIBRATION.md" in summary
 
 
 def test_calibration_report_handles_empty_week(tmp_path, monkeypatch):

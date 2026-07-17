@@ -1,4 +1,4 @@
-"""Insiderability taxonomy — derived from the documented episode history:
+"""Insiderability taxonomy: derived from the documented episode history,
 every verified insider case resolved on a private human decision; none
 happened in a game outcome (nobody knows a live game's result in advance).
 """
@@ -23,7 +23,7 @@ def test_game_outcome_markets_are_none():
 
 
 def test_play_determined_futures_are_none_too():
-    # tournaments, scorer races, playoff runs: decided on the field —
+    # tournaments, scorer races, playoff runs: decided on the field,
     # zero documented insider episodes in any play-determined outcome
     cases = [
         ("Will Harry Kane be the top goal scorer at the 2026 FIFA"
@@ -31,7 +31,7 @@ def test_play_determined_futures_are_none_too():
         ("Will Norway reach the Semifinals at the 2026 FIFA World Cup?",
          "sports"),
         ("Will the Jets make the playoffs?", "sports"),
-        ("Golden Boot Winner — Erling Haaland", "sports"),
+        ("Golden Boot Winner: Erling Haaland", "sports"),
     ]
     for title, cat in cases:
         assert insiderability(title, cat) == "none", title
@@ -48,7 +48,7 @@ def test_esports_flows_to_none_via_categorize():
 
 
 def test_sports_decision_markets_stay_hot():
-    # injuries, retirements, trades, awards DO leak — these are decisions
+    # injuries, retirements, trades, awards DO leak, these are decisions
     cases = [
         "Will Patrick Mahomes retire before the 2027 season?",
         "Will LeBron be traded to the Warriors?",

@@ -1,4 +1,4 @@
-"""Tipoff configuration — every knob in one place.
+"""Tipoff configuration: every knob in one place.
 
 Change values here (or override any of them with an env var of the same name
 prefixed TIPOFF_, e.g. TIPOFF_ALERT_SCORE=50). All thresholds are
@@ -79,7 +79,7 @@ CFG = {
                                   # -> extra points (obscure market, big bet)
 
     # price impact per unit of volume (research-backed: insider trades move
-    # prices ~7-12x more per dollar than skilled-trader flow — Mitts & Ofir)
+    # prices ~7-12x more per dollar than skilled-trader flow, Mitts & Ofir)
     "IMPACT_MULT": 5.0,           # this hour's |move|/volume >= 5x baseline
     "IMPACT_MIN_MOVE": 0.03,      # and the move itself >= 3 cents
 
@@ -91,7 +91,7 @@ CFG = {
     "WITHIN_TRADER_MIN_ROWS": 5,     # need this much history to say so
 
     # coordination (Polymarket): N distinct wallets buying the SAME side
-    # within a tight window — the documented insider signature (Iran Feb 27:
+    # within a tight window: the documented insider signature (Iran Feb 27:
     # 8 wallets bought YES within 2 seconds). Invisible to per-wallet
     # thresholds. Conservative: single-episode evidence, so it corroborates,
     # never alerts alone; calibration measures its real base rate.
@@ -111,12 +111,12 @@ CFG = {
     # insiderability: every documented episode happened in a market that
     # resolves on a PRIVATE HUMAN DECISION (committee, government, board,
     # celebrity, the subject themselves); ZERO happened in play-determined
-    # sports outcomes — games, tournament runs, top-scorer races. Decision
+    # sports outcomes: games, tournament runs, top-scorer races. Decision
     # markets get a score bonus; play-determined markets aren't scanned.
     "INSIDERABLE_POINTS": 8,
 
     # news check (Google News RSS, keyless): an insider move is a move
-    # WITHOUT public news to explain it. Strong alerts get a press sweep —
+    # WITHOUT public news to explain it. Strong alerts get a press sweep:
     # zero recent coverage marks the move unexplained; heavy coverage
     # labels it a likely public-news reaction.
     "MAX_NEWS_CHECKS": 8,         # per run, alerts+monitors only
