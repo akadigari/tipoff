@@ -115,14 +115,19 @@ _RUN_STATS = {"http_errors": 0}  # per-run health counters (reset on start)
 
 
 def now_ts() -> float:
+    """Current unix timestamp. One place to call time.time() so tests can mock it."""
     return time.time()
 
 
 def iso_utc(ts: float) -> str:
+    """Turn a unix timestamp into a UTC string like '2026-07-16T21:12:00Z' —
+    the format used everywhere in the ledger and logs."""
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def utc_hour(ts: float) -> int:
+    """Which UTC hour (0-23) a timestamp falls in — used by the eco/skip-mode
+    throttle to decide whether this cycle should actually run."""
     return datetime.fromtimestamp(ts, tz=timezone.utc).hour
 
 
@@ -419,6 +424,7 @@ def select_universe(markets: list[dict], min_vol24: float) -> list[dict]:
 
 
 def market_key(m: dict) -> str:
+    """Build the state-dict key for a market: 'platform:id', e.g. 'kalshi:KXFED-25SEP-C'."""
     return f'{m["platform"]}:{m["id"]}'
 
 
@@ -437,6 +443,8 @@ RETIRED_MARKET_KEYS = ("s2", "c")  # dropped fields — strip from old state
 
 
 def load_state() -> dict:
+    """Read state/baselines.json off disk. Starts fresh (empty markets/meta)
+    if the file is missing or corrupt, so one bad write never kills the next run."""
     if STATE_FILE.exists():
         try:
             state = json.loads(STATE_FILE.read_text())
@@ -452,6 +460,8 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
+    """Write state back to disk, one market per line, so git diffs stay
+    small and readable even though most of the file changes every hour."""
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     # One market per line -> git stores hourly updates as small line diffs.
     entries = state["markets"]
@@ -525,6 +535,8 @@ def observe_market(entry: dict | None, m: dict, ts: float,
 
 
 def prune_state(state: dict, ts: float) -> int:
+    """Drop markets and wallets that haven't been seen in a long time, so the
+    state file doesn't grow forever. Returns how many markets were dropped."""
     stale = [k for k, e in state["markets"].items()
              if ts - e.get("ts", 0) > CFG["STALE_PRUNE_HOURS"] * 3600]
     for k in stale:
@@ -959,6 +971,9 @@ _STOPWORDS = frozenset(
 
 
 def title_tokens(title: str) -> frozenset:
+    """Lowercase a market title into a set of meaningful words, with common
+    filler words (the, a, in, ...) stripped out. Used to spot when two
+    markets on different platforms are really the same story."""
     words = re.findall(r"[a-z0-9]+", (title or "").lower())
     return frozenset(w for w in words if w not in _STOPWORDS)
 
@@ -1034,6 +1049,7 @@ def dedup_alerts(cands: list[dict], cfg: dict = CFG
 
 
 def score_signals(signals: list[dict]) -> int:
+    """Add up every fired signal's points, capped at 100."""
     return min(100, sum(s["points"] for s in signals))
 
 
@@ -1097,6 +1113,8 @@ def followability_gate(entry_price: float, signal_price: float,
 
 
 def suggested_stake(score: int, depth_usd: float, cfg: dict = CFG) -> float:
+    """Pick a paper-trade size in dollars: bigger for a higher score, but
+    never more than 10% of the visible depth, rounded to a clean $5 step."""
     stake = cfg["PAPER_STAKE_BASE"]
     if score >= 75:
         stake *= 2
@@ -1118,6 +1136,8 @@ def calibration_status(first_run_ts: float, ts: float,
 
 
 def run_mode(calib_active: bool) -> str:
+    """Label stamped on every ledger row: 'calib' during the loose first
+    week, 'normal' after — so calibration-week alerts can be excluded later."""
     return "calib" if calib_active else "normal"
 
 # ---------------------------------------------------------------------------
@@ -1200,6 +1220,8 @@ def format_daily_ping(stats: dict) -> str:
         h = stats["health"]
 
         def mark(n):
+            """Format one health-bar count: a checkmark if it's non-zero,
+            a warning if the platform returned nothing."""
             return f"{n:,} ✓" if n else "0 ⚠️"
         lines.append(
             f"🩺 kalshi {mark(h['kalshi'])} · poly {mark(h['poly'])}"
@@ -1218,6 +1240,9 @@ def format_daily_ping(stats: dict) -> str:
 
 
 def send_telegram(text: str) -> bool:
+    """Send a message to the configured Telegram chat. In dry-run mode (or
+    if no bot token/chat id is set), it just prints the message instead of
+    sending it, so local runs never accidentally spam a real chat."""
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     if os.environ.get("TIPOFF_DRY_RUN") or not token or not chat_id:
@@ -1490,6 +1515,9 @@ def check_actions_budget(meta: dict, ts: float) -> dict | None:
 
 
 def read_ledger() -> list[dict]:
+    """Load ledger/ledger.csv into a list of dicts, filling in default
+    values for columns that didn't exist in older rows — so the ledger can
+    grow new columns over time without breaking rows written before them."""
     if not LEDGER_FILE.exists():
         return []
     with LEDGER_FILE.open(newline="") as fh:
@@ -1502,6 +1530,7 @@ def read_ledger() -> list[dict]:
 
 
 def write_ledger(rows: list[dict]) -> None:
+    """Write the full set of ledger rows back to ledger/ledger.csv, overwriting the file."""
     LEDGER_FILE.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER_FILE.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=LEDGER_COLUMNS)
@@ -1563,6 +1592,7 @@ def verdict_rows(rows: list[dict]) -> list[dict]:
 def compute_report(rows: list[dict]) -> dict:
     """Per-category (and overall) stats + a pre-registered verdict."""
     def bucket():
+        """A fresh, empty stats bucket for one category (or ALL) before rows get folded into it."""
         return {"alerts": 0, "open": 0, "graded": 0, "wins": 0,
                 "roi_sum": 0.0, "clv_sum": 0.0}
 
@@ -1630,6 +1660,8 @@ def verdict(n_graded: int, avg_clv: float, avg_roi: float) -> str:
 
 
 def write_report(rows: list[dict], ts: float) -> None:
+    """Build ledger/REPORT.md: the per-category CLV/ROI/verdict table plus
+    the per-trigger breakdown, and write it to disk. Runs every cycle."""
     scored = verdict_rows(rows)
     n_calib = len(rows) - len(scored)
     stats = compute_report(scored)
@@ -1701,6 +1733,8 @@ def watch_reason_histogram(watch_rows: list[dict]) -> list[tuple[str, int]]:
 
 
 def read_counts(rows: list[dict]) -> dict:
+    """Count how many graded rows fall into each 'informed read' bucket
+    (informed-like, early-but-wrong, late-money, neutral)."""
     counts = {"informed-like": 0, "early-but-wrong": 0,
               "late-money": 0, "neutral": 0}
     for r in rows:
@@ -1806,6 +1840,9 @@ def write_calibration_report(ledger: list[dict], watch_rows: list[dict],
 
 
 def append_watch_log(entries: list[dict]) -> None:
+    """Append new watch-log rows (signals that fired but got filtered by the
+    gate) to ledger/watch_log.csv, trimming the oldest rows once the file
+    passes WATCH_LOG_MAX_ROWS."""
     if not entries:
         return
     WATCH_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -1873,6 +1910,9 @@ def research_row(c: dict, ts: float, mode: str, alerted: bool, score: int,
                  side: str, entry_price: float, depth: float,
                  hours_to_close: float | None,
                  gate_reasons: list[str]) -> dict:
+    """Build one row for research/signals.csv: every candidate this run,
+    alerted or not, with the context needed to later check what the price
+    did at 1h/6h/24h (filled in by fill_forward_returns on later runs)."""
     wallet = next((s.get("wallet", "") for s in c["signals"]
                    if s["type"] == "large_trade"), "")
     return {
@@ -1897,6 +1937,7 @@ def research_row(c: dict, ts: float, mode: str, alerted: bool, score: int,
 
 
 def side_price(side: str, yes_price: float) -> float:
+    """Convert a YES price into the price for whichever side ('yes' or 'no') we actually took."""
     return yes_price if side == "yes" else 1.0 - yes_price
 
 
@@ -2052,6 +2093,8 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
 
 def build_day_stats(meta: dict, ledger: list[dict], calib_active: bool,
                     calib_day: int, health: dict | None = None) -> dict:
+    """Put together the numbers for the daily Telegram ping: today's
+    run/market/alert counts plus the paper book's open/graded/win-loss totals."""
     day = meta.get("day", {})
     graded_rows = [r for r in ledger if r["status"] in ("won", "lost")]
     return {
@@ -2072,6 +2115,10 @@ def build_day_stats(meta: dict, ledger: list[dict], calib_active: bool,
 
 
 def main() -> int:
+    """Run one full scan cycle: load state, pull both platforms' markets,
+    score signals, alert/watch/log, grade resolved positions, and write
+    everything back to disk. This is what GitHub Actions calls once per
+    cron tick — one invocation of tipoff.py is one cycle."""
     load_dotenv(ROOT / ".env")
     _RUN_STATS["http_errors"] = 0
     ts = now_ts()
@@ -2164,6 +2211,8 @@ def main() -> int:
     holding = {r["market_id"] for r in ledger if r["status"] == "open"}
 
     def to_watch(c, score, reasons):
+        """Record a signal that fired but failed the followability gate
+        into the watch list, with the exact reasons it was filtered."""
         watches.append({
             "ts": iso_utc(ts), "platform": c["platform"],
             "market_id": c["id"], "title": c["title"],

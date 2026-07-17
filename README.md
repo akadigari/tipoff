@@ -255,12 +255,18 @@ be a publishable finding — and exactly what this tool is for.
 
 ## Running it
 
+### Requirements
+
+- Python 3.12 (matches the GitHub Actions runner in `.github/workflows/tipoff.yml`)
+- one dependency: `requests` (see [requirements.txt](requirements.txt))
+- no API keys needed to run the scanner — Telegram is the only optional secret (see below)
+
 ### Locally
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt pytest
-pytest                          # 100+ unit tests, no network needed
+pytest                          # 200+ unit tests, no network needed
 
 cp .env.example .env            # then edit; .env is gitignored
 python tipoff.py                # one scan cycle
