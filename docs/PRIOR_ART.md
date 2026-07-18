@@ -11,7 +11,7 @@ in prediction markets, sports-betting steam/CLV services (the most mature
 |---|---|
 | [Polymaster](https://github.com/neur0map/polymaster) | Closest open-source analog: dual-platform (Polymarket + Kalshi) whale watcher, per-wallet SQLite memory, repeat-actor and side-flip flags |
 | [pselamy/polymarket-insider-tracker](https://github.com/pselamy/polymarket-insider-tracker) | Open-source insider pipeline with concrete published thresholds; near-identical architecture to Tipoff (public APIs, no indexing, Telegram) |
-| [Polywhaler](https://polywhaler.com/) | Commercial: insider risk score (big bets at long odds), watchlist-consensus alerts, paper-trading simulator |
+| [Polywhaler](https://polywhaler.com/) | Commercial: insider risk score (big bets at long odds), watchlist-consensus alerts, a trade simulator (no real money) |
 | [OrcaLayer Whales](https://orcalayer.com/whales) | Best published smart-money badge: per-resolved-market win rate ≥55% + positive PnL + ≥10 resolved markets, with farmer/bot noise filters |
 | [FORCASTR](https://forcastr.market/) | Commercial Kalshi-only intelligence terminal: tiered whale alerts, 60-second cadence |
 | [CrossOdds](https://www.crossodds.app/) | Kalshi+Polymarket whale dashboard; admits Kalshi whales stay anonymous (no wallet data) |
@@ -50,7 +50,7 @@ Already built before the survey, independently validated by it: CLV grading
 (unique), the followability gate (academically supported: thin markets
 underreact and drift), fresh-wallet flag (matches the documented insider
 pattern: six fresh wallets made ~$1.2M on the Oct 2024 Iran-strike market),
-cross-platform confirmation, thin-market bonus, paper-trading loop.
+cross-platform confirmation, thin-market bonus, the alert-tracking loop.
 
 ## Roadmap (not yet built, in rough priority order)
 
@@ -82,7 +82,7 @@ cross-platform confirmation, thin-market bonus, paper-trading loop.
 ## Open gaps in the field (what this data could uniquely answer)
 
 - The first audited alert track record in the prediction-market space
-  (CLV table + a sign-randomization null over the paper ledger).
+  (CLV table + a sign-randomization null over the ledger).
 - The first published follow-vs-fade table per signal type (is fresh-wallet
   a follow in politics but a fade in sports?).
 - The edge-decay curve for an hourly scanner: where is 1-hour latency still

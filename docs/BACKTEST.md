@@ -31,7 +31,7 @@ aggregate score threshold, not detection.**
 2. **MONITOR-grade alerts**: the gate is now advisory, not silencing:
    strong-but-gated signals send a distinct "👀 MONITOR: strong signal,
    gated" Telegram alert with the gate reasons attached. They are never
-   paper-traded (that would poison the CLV verdict). A score-125 signal the
+   logged to the ledger (that would poison the CLV verdict). A score-125 signal the
    user never sees is a system failure; the Nobel leak now reaches your
    phone as intel.
 3. **Insider-archetype bypass**: fresh wallet + large same-wallet trade

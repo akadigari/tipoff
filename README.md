@@ -1,16 +1,16 @@
 # Tipoff
 
 **A cloud-run scanner that watches Kalshi and Polymarket for informed-money
-footprints, alerts on Telegram when a signal is still followable, and
-paper-tracks every alert so the data (not vibes) decides whether any market
-niche is worth following.**
+footprints, alerts on Telegram when a signal is still followable, and tracks
+every alert against real prices so the data (not vibes) decides whether any
+market niche is worth following.**
 
 Runs entirely on GitHub Actions (hourly cron, no server, laptop off). It never
 places an order.
 
 ## Honest framing: read this first
 
-Tipoff is a **paper-testing research tool**. The question it exists to answer:
+Tipoff is a **research tool: it tracks every call, it never trades**. The question it exists to answer:
 
 > When smart/informed money shows up in public prediction-market data, is
 > there still edge left by the time an outside observer could react, and in
@@ -19,7 +19,7 @@ Tipoff is a **paper-testing research tool**. The question it exists to answer:
 It **detects and follows informed money in public data** (prices, volumes,
 on-chain trades). It does not place trades, live or otherwise, and it has
 nothing to do with trading on non-public information: "insider trading scoop"
-in the alert header is the joke, not the method. Every alert goes into a paper
+in the alert header is the joke, not the method. Every alert goes into the
 ledger and gets graded on resolution, with **closing-line value (CLV)** as the
 primary metric. If a category's CLV says "you were always late," the honest
 answer is that niche is not followable, and Tipoff will tell you so.
@@ -116,7 +116,7 @@ reasons**: the raw material for tuning.
 **The gate is advisory for strong signals, silencing only for weak ones.**
 A signal that clears the alert bar but fails the gate sends a distinct
 **👀 MONITOR** Telegram alert carrying the gate reasons: intel, not a
-trade, and never paper-traded. This exists because the backtest
+trade, and never logged to the ledger. This exists because the backtest
 ([docs/BACKTEST.md](docs/BACKTEST.md)) replayed the 2025 Nobel Peace Prize
 leak and found Tipoff scoring it 125/100 for ten straight hours while the
 gate silently killed every alert. Two more backtest-driven rules: the
@@ -130,7 +130,7 @@ One alert per story: multiple legs of the same event spiking on one news item
 are deduped to the top scorer, and a cross-platform twin of an already-sent
 alert is dropped (its confirmation is already priced into the kept one's
 score). Plus: max alerts per run, a per-market re-alert cooldown, and no
-re-alerting a market already "held" in the paper ledger.
+re-alerting a market already "held" in the ledger.
 
 ## Calibration week
 
@@ -194,7 +194,7 @@ how many baselines are past warm-up, and API errors over the last day. The
    itself not running the workflow. That's why the daily ping exists: **no
    ping for two days = go look at the Actions tab.**
 
-## Paper ledger + CLV grading
+## The ledger + CLV grading
 
 Every alert is appended to [ledger/ledger.csv](ledger/ledger.csv) with the
 price you'd have paid (the ask for the alerted side). Each later run refreshes
@@ -212,7 +212,7 @@ resolves, the row is graded:
 
 ### The research dataset: signals.csv
 
-The paper ledger only grades what *alerted*. [research/signals.csv](research/signals.csv)
+The ledger only grades what *alerted*. [research/signals.csv](research/signals.csv)
 goes further: **every signal candidate** (alerted or filtered) gets a row
 with its full context (signal types, score, side, YES price, 24h volume,
 depth, time to resolution, the exact gate reasons, and the whale wallet
@@ -392,7 +392,7 @@ docs/BACKTEST.md             replay vs documented insider episodes (6/6 detected
   jump on a pre-announced poll release >12h before close can still fire.
 - **Cross-platform matching is conservative** (token similarity + number
   veto); it will miss some twins rather than merge different markets.
-- **Paper fills are optimistic**: entry at the displayed ask, no fees, no
+- **Simulated fills are optimistic**: entry at the displayed ask, no fees, no
   slippage beyond the spread. Real following would do somewhat worse, so a
   verdict that's only barely FOLLOWABLE should be treated as MARGINAL.
 - **No live orders, ever.** If the verdict ever justifies real money, that's
