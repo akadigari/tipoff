@@ -1,6 +1,6 @@
 # Tipoff — paper-trading report
 
-_Auto-generated 2026-07-18T09:42:00Z. 178 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
+_Auto-generated 2026-07-18T12:00:31Z. 179 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
@@ -12,6 +12,6 @@ A category is only called FOLLOWABLE with >= 20 graded alerts, avg CLV
 | entertainment | 0 | 0 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
 | politics | 4 | 4 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
 | sports | 0 | 0 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
-| crypto | 0 | 0 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
+| crypto | 1 | 1 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
 | other | 2 | 2 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
-| ALL | 6 | 6 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
+| ALL | 7 | 7 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
