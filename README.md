@@ -159,7 +159,7 @@ alerted, raise the relevant signal threshold. Then let normal mode run.
 🔔 Signal: volume spike (12x baseline) + price jump +9c in 1.0h
 💵 Price: 62c, buy YES
 🏷 Category: politics
-📐 Suggested size: $50 (paper)
+📐 Suggested size: $50 (sim)
 ⚡ Score 72/100 · resolves in 30h
 ⏳ Window open: verify + move.
 ```

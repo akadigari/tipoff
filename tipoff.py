@@ -22,7 +22,7 @@ GitHub Actions cron). It never places orders. It:
   4. Runs a FOLLOWABILITY GATE: price still catchable (entry within ~3c of
      the signal), not already fully moved, enough depth for a small size,
      and resolution >24h out so a lag window exists. Gate fail -> WATCH log.
-  5. Scores signals; strong + followable -> Telegram alert + paper-ledger
+  5. Scores signals; strong + followable -> Telegram alert + sim-ledger
      entry, graded on resolution (win/loss, ROI, closing-line value) per
      category.
 
@@ -33,7 +33,7 @@ Operational extras:
   - DAILY PING: one short Telegram summary a day ("scanned N, X alerts,
     Y watches") so silence never means "maybe it's broken".
 
-Honest framing: paper-testing research tool. It detects/follows informed
+Honest framing: sim-testing research tool. It detects/follows informed
 money in public market data; it does not place trades and it does not
 involve trading on non-public information.
 
@@ -163,7 +163,7 @@ def load_dotenv(path: Path) -> None:
 
 
 _session = requests.Session()
-_session.headers["User-Agent"] = "tipoff-scanner/1.0 (paper research; no orders)"
+_session.headers["User-Agent"] = "tipoff-scanner/1.0 (sim research; no orders)"
 
 
 def http_get_json(url: str, params=None, retries: int = 2):
@@ -1113,9 +1113,9 @@ def followability_gate(entry_price: float, signal_price: float,
 
 
 def suggested_stake(score: int, depth_usd: float, cfg: dict = CFG) -> float:
-    """Pick a paper-trade size in dollars: bigger for a higher score, but
+    """Pick a sim-trade size in dollars: bigger for a higher score, but
     never more than 10% of the visible depth, rounded to a clean $5 step."""
-    stake = cfg["PAPER_STAKE_BASE"]
+    stake = cfg["SIM_STAKE_BASE"]
     if score >= 75:
         stake *= 2
     if score >= 90:
@@ -1180,11 +1180,11 @@ def format_alert(alert: dict) -> str:
             f"⚡ Score {alert['score']}/100 · {len(alert['signals'])}"
             f" signals · resolves in {window_txt}",
             f"🚧 Gated: {alert.get('gate_reasons', 'followability failed')}",
-            "👀 Watch it. Don't chase. Not a paper trade.",
+            "👀 Watch it. Don't chase. Not a sim trade.",
         ]
     else:
         lines += [
-            f"📐 Suggested size: ${alert['stake_usd']:.0f} (paper)",
+            f"📐 Suggested size: ${alert['stake_usd']:.0f} (sim)",
             f"⚡ Score {alert['score']}/100 · {len(alert['signals'])}"
             f" signals · resolves in {window_txt}",
             "⏳ Window open: verify + move.",
@@ -1208,11 +1208,11 @@ def format_daily_ping(stats: dict) -> str:
     ]
     if stats["graded"]:
         lines.append(
-            f"Paper book: {stats['open_positions']} open · {stats['graded']}"
+            f"Sim book: {stats['open_positions']} open · {stats['graded']}"
             f" graded ({stats['wins']}W-{stats['losses']}L, avg CLV"
             f" {stats['avg_clv'] * 100:+.1f}c)")
     elif stats["open_positions"]:
-        lines.append(f"Paper book: {stats['open_positions']} open, none"
+        lines.append(f"Sim book: {stats['open_positions']} open, none"
                      f" resolved yet")
     if stats["alerts"] == 0:
         lines.append("All quiet: nothing strong + followable fired.")
@@ -1510,7 +1510,7 @@ def check_actions_budget(meta: dict, ts: float) -> dict | None:
     return outlook
 
 # ---------------------------------------------------------------------------
-# Paper ledger + CLV grading
+# Sim ledger + CLV grading
 # ---------------------------------------------------------------------------
 
 
@@ -1666,7 +1666,7 @@ def write_report(rows: list[dict], ts: float) -> None:
     n_calib = len(rows) - len(scored)
     stats = compute_report(scored)
     lines = [
-        "# Tipoff: paper-trading report",
+        "# Tipoff: sim-trading report",
         "",
         f"_Auto-generated {iso_utc(ts)}. {len(rows)} alerts ledgered"
         + (f" ({n_calib} from calibration week, excluded from the verdict"
@@ -1772,7 +1772,7 @@ def write_calibration_report(ledger: list[dict], watch_rows: list[dict],
         "",
         "## Totals",
         "",
-        f"- **{len(follows)} paper positions** ({monitors} additional"
+        f"- **{len(follows)} sim positions** ({monitors} additional"
         f" MONITOR-grade alerts, never traded)",
         f"- **Graded: {len(graded)}**, {wins}W-{len(graded) - wins}L,"
         f" avg ROI {avg_roi * 100:+.1f}%, avg CLV {avg_clv * 100:+.1f}c",
@@ -1829,7 +1829,7 @@ def write_calibration_report(ledger: list[dict], watch_rows: list[dict],
 
     top = ", ".join(f"{k} ({v})" for k, v in histogram[:3])
     return (f"📏 Calibration week complete!\n"
-            f"{len(follows)} paper alerts + {monitors} monitors ·"
+            f"{len(follows)} sim alerts + {monitors} monitors ·"
             f" graded {wins}W-{len(graded) - wins}L ·"
             f" avg CLV {avg_clv * 100:+.1f}c\n"
             f"Reads: {reads['informed-like']} informed-like ·"
@@ -2094,7 +2094,7 @@ def scan_market(m: dict, entry: dict | None, ts: float, trade_budget: dict,
 def build_day_stats(meta: dict, ledger: list[dict], calib_active: bool,
                     calib_day: int, health: dict | None = None) -> dict:
     """Put together the numbers for the daily Telegram ping: today's
-    run/market/alert counts plus the paper book's open/graded/win-loss totals."""
+    run/market/alert counts plus the sim book's open/graded/win-loss totals."""
     day = meta.get("day", {})
     graded_rows = [r for r in ledger if r["status"] in ("won", "lost")]
     return {
@@ -2261,7 +2261,7 @@ def main() -> int:
                                   "entry_price": entry_price, "depth": depth,
                                   "hours_to_close": hours_to_close,
                                   "grade": "follow", "sort_key": score + 1000})
-        else:  # strong but gated -> MONITOR-grade intel, never a paper trade
+        else:  # strong but gated -> MONITOR-grade intel, never a sim trade
             if cooling:
                 to_watch(c, score, ["re-alert cooldown (monitor)"])
             else:
@@ -2290,7 +2290,7 @@ def main() -> int:
         print(f"  WATCH [{w['score']:>3}] {w['title'][:55]} ::"
               f" {w['signals']} :: {w['reasons']}")
 
-    # --- 5. send alerts, append to the paper ledger ---
+    # --- 5. send alerts, append to the sim ledger ---
     next_id = 1 + max((int(r["id"]) for r in ledger if r["id"].isdigit()),
                       default=0)
     for a in alerts:
@@ -2327,7 +2327,7 @@ def main() -> int:
         next_id += 1
 
     # MONITOR-grade: strong-but-gated intel. Telegram + research log only:
-    # never a paper trade (the gate said a follow would lose; grading it
+    # never a sim trade (the gate said a follow would lose; grading it
     # as one would poison the CLV verdict).
     for a in monitors:
         desc_list = [s["desc"] for s in a["signals"]]

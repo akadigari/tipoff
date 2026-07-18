@@ -97,7 +97,7 @@ def test_calibration_report_content_and_summary(tmp_path, monkeypatch):
                                        NOW)
     text = (tmp_path / "CALIBRATION.md").read_text()
     assert "# Calibration week review" in text
-    assert "3 paper positions" in text and "1 additional MONITOR" in text
+    assert "3 sim positions" in text and "1 additional MONITOR" in text
     assert "1W-1L" in text
     assert "| thin | 2 |" in text
     assert "1 informed-like" in text and "1 early-but-wrong" in text
@@ -110,4 +110,4 @@ def test_calibration_report_handles_empty_week(tmp_path, monkeypatch):
     monkeypatch.setattr(tipoff, "CALIB_REPORT_FILE",
                         tmp_path / "CALIBRATION.md")
     summary = write_calibration_report([], [], [], {}, NOW)
-    assert "0 paper alerts" in summary  # silent week still reports cleanly
+    assert "0 sim alerts" in summary  # silent week still reports cleanly

@@ -125,9 +125,9 @@ def test_choose_side_falls_back_to_drift():
 # --- suggested stake -----------------------------------------------------------
 
 def test_stake_scales_with_score():
-    assert suggested_stake(60, depth_usd=100000) == CFG["PAPER_STAKE_BASE"]
-    assert suggested_stake(80, depth_usd=100000) == CFG["PAPER_STAKE_BASE"] * 2
-    assert suggested_stake(95, depth_usd=100000) == CFG["PAPER_STAKE_BASE"] * 4
+    assert suggested_stake(60, depth_usd=100000) == CFG["SIM_STAKE_BASE"]
+    assert suggested_stake(80, depth_usd=100000) == CFG["SIM_STAKE_BASE"] * 2
+    assert suggested_stake(95, depth_usd=100000) == CFG["SIM_STAKE_BASE"] * 4
 
 
 def test_stake_capped_by_depth():

@@ -150,7 +150,7 @@ CFG = {
     "REALERT_COOLDOWN_H": 48.0,   # per-market cooldown
     "MAX_ALERTS_PER_RUN": 5,
     "MONITOR_MAX_PER_RUN": 3,     # gate-failed-but-strong 👀 alerts per run
-    "PAPER_STAKE_BASE": 25.0,     # suggested paper size ($)
+    "SIM_STAKE_BASE": 25.0,     # suggested sim size ($)
 
     # ------------------------------------------------------------------
     # Calibration week: first N days after deployment run looser so the
