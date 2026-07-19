@@ -48,6 +48,11 @@ jobs:
           WORKFLOW_EDIT_TOKEN: ${{ secrets.WORKFLOW_EDIT_TOKEN }}
         run: python tipoff.py
 
+      - name: Self-audit (grade our own signals against what happened next)
+        # Reads research/signals.csv and rewrites research/LEARNING.md.
+        # Pure local analysis, no network, so it never fails a scan.
+        run: python learn.py || echo "self-audit skipped"
+
       - name: Commit ledger + state back to the repo
         run: |
           git config user.name "tipoff-bot"

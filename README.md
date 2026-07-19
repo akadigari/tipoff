@@ -377,6 +377,9 @@ ledger/ledger.csv            every alert, graded on resolution
 ledger/watch_log.csv         signals that fired but were filtered, with reasons
 ledger/REPORT.md             per-category CLV verdict (regenerated each run)
 research/signals.csv         every candidate + 1h/6h/24h forward prices
+research/LEARNING.md         self-audit: every trigger graded on what
+                             actually happened next (rewritten each run)
+learn.py                     the self-audit, runnable standalone
 docs/PRIOR_ART.md            survey of similar tools + feature roadmap
 docs/BACKTEST.md             replay vs documented insider episodes (6/6 detected)
 ```
