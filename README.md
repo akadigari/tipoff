@@ -379,7 +379,10 @@ ledger/REPORT.md             per-category CLV verdict (regenerated each run)
 research/signals.csv         every candidate + 1h/6h/24h forward prices
 research/LEARNING.md         self-audit: every trigger graded on what
                              actually happened next (rewritten each run)
+research/ROSTER.md           wallet roster: flagged wallets graded on the
+                             move that followed their trades (wallet-first)
 learn.py                     the self-audit, runnable standalone
+roster.py                    the wallet roster, runnable standalone
 docs/PRIOR_ART.md            survey of similar tools + feature roadmap
 docs/BACKTEST.md             replay vs documented insider episodes (6/6 detected)
 ```

@@ -53,6 +53,11 @@ jobs:
         # Pure local analysis, no network, so it never fails a scan.
         run: python learn.py || echo "self-audit skipped"
 
+      - name: Wallet roster (grade the wallets we keep flagging)
+        # Reads research/signals.csv + state, rewrites research/ROSTER.md.
+        # Also pure local analysis, no network.
+        run: python roster.py || echo "roster skipped"
+
       - name: Commit ledger + state back to the repo
         run: |
           git config user.name "tipoff-bot"
