@@ -1,6 +1,6 @@
 # What the scanner has learned about itself
 
-_Auto-generated 2026-07-19T14:26:20Z. 7240 candidates logged, 4231 with a filled 24h forward price._
+_Auto-generated 2026-07-19T16:04:27Z. 7335 candidates logged, 4232 with a filled 24h forward price._
 
 Every row is scored on the move that followed it, in the direction
 the scanner picked. Positive means the market kept going our way,
@@ -19,7 +19,7 @@ The one test that matters most. Alerted rows should beat filtered rows. If they 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
 | alerted (passed gate and score) | 129 | +0.89c | -0.00c | 48% | NOISE (no measurable edge) |
-| filtered out | 3944 | -0.44c | +0.00c | 48% | NOISE (no measurable edge) |
+| filtered out | 3945 | -0.44c | +0.00c | 48% | NOISE (no measurable edge) |
 | monitor (strong but gated) | 158 | -1.35c | -0.00c | 50% | FADE (signal points the wrong way) |
 
 ## Per trigger
@@ -36,7 +36,7 @@ A trigger that reads FADE is pointing the wrong way and is a candidate for inver
 | volume_spike | 3392 | -0.20c | +0.00c | 48% | NOISE (no measurable edge) |
 | insiderable | 373 | -0.64c | +0.00c | 47% | NOISE (no measurable edge) |
 | cross_platform | 68 | -1.22c | +0.00c | 45% | FADE (signal points the wrong way) |
-| price_jump | 1022 | -1.76c | -1.00c | 46% | FADE (signal points the wrong way) |
+| price_jump | 1023 | -1.77c | -1.00c | 46% | FADE (signal points the wrong way) |
 | fresh_wallet | 9 | -2.07c | -1.00c | 25% | INSUFFICIENT DATA |
 | chatter | 3 | -2.63c | -2.20c | 0% | INSUFFICIENT DATA |
 | thin_market | 17 | -4.97c | +0.00c | 38% | INSUFFICIENT DATA |
@@ -45,7 +45,7 @@ A trigger that reads FADE is pointing the wrong way and is a candidate for inver
 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
-| other | 1871 | -0.19c | -0.00c | 49% | NOISE (no measurable edge) |
+| other | 1872 | -0.20c | +0.00c | 49% | NOISE (no measurable edge) |
 | politics | 1397 | -0.22c | +0.00c | 46% | NOISE (no measurable edge) |
 | crypto | 489 | -0.63c | +0.00c | 49% | NOISE (no measurable edge) |
 | entertainment | 279 | -1.67c | +0.00c | 47% | FADE (signal points the wrong way) |
@@ -58,7 +58,7 @@ These should improve as the score rises. If they do not, the point weights are w
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
 | 40 to 54 | 598 | +0.10c | +0.00c | 49% | NOISE (no measurable edge) |
-| under 40 | 2741 | -0.42c | +0.00c | 47% | NOISE (no measurable edge) |
+| under 40 | 2742 | -0.42c | +0.00c | 47% | NOISE (no measurable edge) |
 | 55 to 69 | 517 | -0.65c | -0.00c | 49% | NOISE (no measurable edge) |
 | 70+ | 375 | -1.07c | -0.00c | 51% | FADE (signal points the wrong way) |
 
@@ -68,7 +68,7 @@ These should improve as the score rises. If they do not, the point weights are w
 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
-| normal | 3376 | -0.28c | +0.00c | 48% | NOISE (no measurable edge) |
+| normal | 3377 | -0.28c | +0.00c | 48% | NOISE (no measurable edge) |
 | high | 373 | -0.64c | +0.00c | 47% | NOISE (no measurable edge) |
 
 ## Horizon check
