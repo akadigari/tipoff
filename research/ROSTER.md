@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-07-21T00:05:34Z. 1070 flagged wallets, 10 with enough graded trades to judge, 0 that beat a coin flip._
+_Auto-generated 2026-07-21T03:38:06Z. 1078 flagged wallets, 10 with enough graded trades to judge, 0 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -23,18 +23,18 @@ _None yet._
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
+| `0x0f47682c24...` | 16 | +2.12c | 62% | 0.23 | 14 | 17 | PROMISING (edge, luck not ruled out) |
 | `0x74471a007d...` | 19 | +2.03c | 56% | 0.41 | 15 | 22 | PROMISING (edge, luck not ruled out) |
-| `0x60a92c8620...` | 12 | +1.61c | 67% | 0.25 | 13 | 18 | PROMISING (edge, luck not ruled out) |
-| `0x0f47682c24...` | 14 | +1.55c | 57% | 0.39 | 14 | 17 | PROMISING (edge, luck not ruled out) |
+| `0x60a92c8620...` | 13 | +1.37c | 60% | 0.38 | 13 | 18 | PROMISING (edge, luck not ruled out) |
 | `0xfc2f4f50ce...` | 12 | +1.14c | 50% | 0.61 | 11 | 13 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
+| `0x0f47682c24...` | 16 | +2.12c | 62% | 0.23 | 14 | 17 | PROMISING (edge, luck not ruled out) |
 | `0x74471a007d...` | 19 | +2.03c | 56% | 0.41 | 15 | 22 | PROMISING (edge, luck not ruled out) |
-| `0x60a92c8620...` | 12 | +1.61c | 67% | 0.25 | 13 | 18 | PROMISING (edge, luck not ruled out) |
-| `0x0f47682c24...` | 14 | +1.55c | 57% | 0.39 | 14 | 17 | PROMISING (edge, luck not ruled out) |
+| `0x60a92c8620...` | 13 | +1.37c | 60% | 0.38 | 13 | 18 | PROMISING (edge, luck not ruled out) |
 | `0xfc2f4f50ce...` | 12 | +1.14c | 50% | 0.61 | 11 | 13 | PROMISING (edge, luck not ruled out) |
 | `0x1465b79bff...` | 20 | +0.20c | 39% | 0.88 | 9 | 27 | NOISE (busy, not sharp) |
 | `0x122cb94c43...` | 17 | +0.07c | 35% | 0.93 | 16 | 21 | NOISE (busy, not sharp) |
