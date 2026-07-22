@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-07-22T03:36:27Z. 1134 flagged wallets, 11 with enough graded trades to judge, 0 that beat a coin flip._
+_Auto-generated 2026-07-22T06:39:49Z. 1142 flagged wallets, 11 with enough graded trades to judge, 0 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -39,9 +39,9 @@ _None yet._
 | `0xdbd028b4af...` | 12 | +0.67c | 64% | 0.27 | 13 | 14 | NOISE (busy, not sharp) |
 | `0x122cb94c43...` | 20 | +0.54c | 45% | 0.75 | 16 | 21 | NOISE (busy, not sharp) |
 | `0x1465b79bff...` | 26 | +0.46c | 45% | 0.74 | 9 | 32 | NOISE (busy, not sharp) |
-| `0x511f9c7714...` | 26 | -0.19c | 52% | 0.50 | 16 | 35 | NOISE (busy, not sharp) |
-| `0xe734e7bf7c...` | 14 | -1.11c | 50% | 0.61 | 7 | 16 | FADE (bets the wrong way) |
-| `0x6916cc00aa...` | 21 | -1.57c | 44% | 0.77 | 16 | 28 | FADE (bets the wrong way) |
+| `0x511f9c7714...` | 26 | -0.19c | 52% | 0.50 | 17 | 36 | NOISE (busy, not sharp) |
+| `0xe734e7bf7c...` | 14 | -1.11c | 50% | 0.61 | 7 | 17 | FADE (bets the wrong way) |
+| `0x6916cc00aa...` | 22 | -1.45c | 47% | 0.69 | 16 | 28 | FADE (bets the wrong way) |
 | `0x7f9e2d1df7...` | 13 | -2.70c | 45% | 0.73 | 11 | 16 | FADE (bets the wrong way) |
 
 ## Documented known insiders (Phase B watch targets)
