@@ -1,6 +1,6 @@
 # What the scanner has learned about itself
 
-_Auto-generated 2026-07-22T12:44:36Z. 9673 candidates logged, 5716 with a filled 24h forward price._
+_Auto-generated 2026-07-22T15:10:32Z. 9782 candidates logged, 5716 with a filled 24h forward price._
 
 Every row is scored on the move that followed it, in the direction
 the scanner picked. Positive means the market kept going our way,
@@ -75,7 +75,7 @@ These should improve as the score rises. If they do not, the point weights are w
 
 | Horizon | Samples | Avg move | Moved our way |
 |---|---|---|---|
-| p_1h (alerted only) | 195 | +0.04c | 41% |
+| p_1h (alerted only) | 196 | +0.02c | 40% |
 | p_6h (alerted only) | 180 | -0.70c | 46% |
 | p_24h (alerted only) | 141 | +0.81c | 47% |
 
