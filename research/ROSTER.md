@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-07-23T03:37:59Z. 1192 flagged wallets, 14 with enough graded trades to judge, 1 that beat a coin flip._
+_Auto-generated 2026-07-23T06:37:45Z. 1185 flagged wallets, 14 with enough graded trades to judge, 1 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -47,7 +47,7 @@ The grading below is exactly what separates the two.
 | `0x6916cc00aa...` | 25 | -1.32c | 50% | 0.59 | 17 | 29 | FADE (bets the wrong way) |
 | `0xb10047d6a2...` | 13 | -1.89c | 36% | 0.89 | 12 | 15 | FADE (bets the wrong way) |
 | `0x7f9e2d1df7...` | 14 | -2.51c | 45% | 0.73 | 11 | 16 | FADE (bets the wrong way) |
-| `0xfc2f4f50ce...` | 13 | -3.51c | 46% | 0.71 | 12 | 14 | FADE (bets the wrong way) |
+| `0xfc2f4f50ce...` | 12 | -5.56c | 42% | 0.81 | 11 | 14 | FADE (bets the wrong way) |
 
 ## Documented known insiders (Phase B watch targets)
 
