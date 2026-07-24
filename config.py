@@ -141,7 +141,14 @@ CFG = {
     "GATE_MIN_DEPTH_USD": 500.0,  # size at the touch (Kalshi)
     "GATE_MIN_LIQUIDITY_USD": 2000.0,  # book-liquidity proxy (Polymarket)
     "GATE_MIN_HOURS_TO_CLOSE": 24.0,   # resolves sooner = no lag window
-    "GATE_MAX_DAYS_TO_CLOSE": 90.0,    # slower = dead capital
+    # DATA-MOTIVATED (2026-07-24, research/LEARNING.md timing table): signals
+    # on markets resolving within a week averaged POSITIVE forward moves,
+    # while >1-month-out signals averaged -0.5c over 3,458 samples and were
+    # the majority of our alerts. Informed money shows up when the event is
+    # imminent; a spike months out is rumor churn. So the general cap drops
+    # to 30 days. Fresh-wallet insider markets with a far backstop date
+    # (e.g. a pardon "by Dec 31") keep their exemption in the gate.
+    "GATE_MAX_DAYS_TO_CLOSE": 30.0,
 
     # ------------------------------------------------------------------
     # Alerting

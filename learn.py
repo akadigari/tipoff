@@ -145,6 +145,31 @@ def triggers_of(row: dict) -> list[str]:
             if t.strip()]
 
 
+CLOSE_BANDS = ("under 1 day", "1 to 3 days", "3 to 7 days",
+               "1 to 4 weeks", "over a month")
+
+
+def close_band(row: dict) -> str | None:
+    """How long until the market resolved, at signal time. The strongest
+    timing lever found in the data: near-resolution signals pay, far-out
+    ones do not (informed money shows up when the event is imminent)."""
+    try:
+        h = float(row.get("hours_to_close") or 0)
+    except ValueError:
+        return None
+    if h <= 0:
+        return None
+    if h < 24:
+        return "under 1 day"
+    if h < 72:
+        return "1 to 3 days"
+    if h < 168:
+        return "3 to 7 days"
+    if h < 720:
+        return "1 to 4 weeks"
+    return "over a month"
+
+
 def table(title: str, buckets: dict, note: str = "") -> list[str]:
     """Render one section, best average first."""
     lines = [f"## {title}", ""]
@@ -202,6 +227,14 @@ def build_report(rows: list[dict], generated_at: str) -> str:
         "Per insiderability tier",
         group_by(rows, lambda r: r.get("insiderable")),
         "'high' means a market that resolves on a private human decision.")
+    lines += table(
+        "Per time-to-resolution (the accurate-time-to-bet table)",
+        {b: group_by(rows, close_band).get(b, summarize([]))
+         for b in CLOSE_BANDS},
+        "Sorted by average, but read it in time order too. The strongest"
+        " timing lever in the data: near-resolution signals pay, far-out ones"
+        " do not. Informed money shows up when the event is imminent; a spike"
+        " months out is rumor churn. This is why the gate now caps at 30 days.")
 
     lines += ["## Horizon check", "",
               "| Horizon | Samples | Avg move | Moved our way |",

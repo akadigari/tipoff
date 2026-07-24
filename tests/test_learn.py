@@ -3,9 +3,35 @@ followed them."""
 
 import learn
 from learn import (
-    FADE_EDGE, FOLLOW_EDGE, MIN_SAMPLES, build_report, forward_move,
-    group_by, score_band, summarize, triggers_of, verdict_for,
+    FADE_EDGE, FOLLOW_EDGE, MIN_SAMPLES, build_report, close_band,
+    forward_move, group_by, score_band, summarize, triggers_of, verdict_for,
 )
+
+
+def test_close_band_buckets():
+    assert close_band({"hours_to_close": "12"}) == "under 1 day"
+    assert close_band({"hours_to_close": "48"}) == "1 to 3 days"
+    assert close_band({"hours_to_close": "120"}) == "3 to 7 days"
+    assert close_band({"hours_to_close": "300"}) == "1 to 4 weeks"
+    assert close_band({"hours_to_close": "2000"}) == "over a month"
+
+
+def test_close_band_handles_missing_and_bad():
+    assert close_band({"hours_to_close": ""}) is None
+    assert close_band({"hours_to_close": "0"}) is None
+    assert close_band({"hours_to_close": "junk"}) is None
+    assert close_band({}) is None
+
+
+def test_timing_table_in_report():
+    rows = [dict({"side": "yes", "yes_price": "0.50", "p_24h": "0.55",
+                  "hours_to_close": "100", "triggers": "volume_spike",
+                  "category": "politics", "score": "60", "alerted": "1",
+                  "insiderable": "normal"})
+            for _ in range(MIN_SAMPLES)]
+    text = build_report(rows, "2026-07-24T00:00:00Z")
+    assert "accurate-time-to-bet" in text
+    assert "3 to 7 days" in text
 
 
 def row(side="yes", yes_price="0.50", p_24h="0.55", **extra):
