@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-07-26T14:42:47Z. 1217 flagged wallets, 15 with enough graded trades to judge, 2 that beat a coin flip._
+_Auto-generated 2026-07-26T16:10:53Z. 1223 flagged wallets, 15 with enough graded trades to judge, 2 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -38,14 +38,14 @@ The grading below is exactly what separates the two.
 | `0xeb6f0a13ea...` | 12 | +3.40c | 91% | 0.01 | 5 | 18 | WATCH (beats luck) |
 | `0x60a92c8620...` | 18 | +1.63c | 69% | 0.11 | 13 | 29 | PROMISING (edge, luck not ruled out) |
 | `0xdbd028b4af...` | 12 | +0.87c | 64% | 0.27 | 12 | 14 | NOISE (busy, not sharp) |
-| `0x122cb94c43...` | 23 | +0.64c | 57% | 0.34 | 19 | 31 | NOISE (busy, not sharp) |
+| `0x122cb94c43...` | 23 | +0.64c | 57% | 0.34 | 20 | 33 | NOISE (busy, not sharp) |
 | `0x1465b79bff...` | 31 | +0.10c | 46% | 0.72 | 9 | 37 | NOISE (busy, not sharp) |
 | `0xd218e47477...` | 12 | +0.04c | 50% | 0.62 | 10 | 13 | NOISE (busy, not sharp) |
 | `0x7449904c4f...` | 13 | +0.02c | 67% | 0.50 | 13 | 16 | NOISE (busy, not sharp) |
 | `0x21e25662e5...` | 27 | +0.02c | 56% | 0.41 | 10 | 35 | NOISE (busy, not sharp) |
-| `0x511f9c7714...` | 36 | -0.31c | 52% | 0.50 | 25 | 48 | NOISE (busy, not sharp) |
+| `0x511f9c7714...` | 37 | -0.36c | 50% | 0.57 | 25 | 48 | NOISE (busy, not sharp) |
 | `0x8b4bca1d79...` | 12 | -1.51c | 50% | 0.62 | 12 | 15 | FADE (bets the wrong way) |
-| `0x6916cc00aa...` | 18 | -2.12c | 53% | 0.50 | 15 | 32 | FADE (bets the wrong way) |
+| `0x6916cc00aa...` | 18 | -2.12c | 53% | 0.50 | 15 | 33 | FADE (bets the wrong way) |
 | `0xe734e7bf7c...` | 27 | -3.64c | 41% | 0.88 | 13 | 38 | FADE (bets the wrong way) |
 | `0x06dc51826b...` | 19 | -6.50c | 42% | 0.82 | 28 | 36 | FADE (bets the wrong way) |
 
