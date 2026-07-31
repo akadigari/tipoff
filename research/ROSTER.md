@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-07-31T15:25:39Z. 1272 flagged wallets, 18 with enough graded trades to judge, 1 that beat a coin flip._
+_Auto-generated 2026-07-31T17:48:47Z. 1275 flagged wallets, 18 with enough graded trades to judge, 1 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -28,7 +28,7 @@ The grading below is exactly what separates the two.
 | `0x74471a007d...` | 14 | +2.93c | 57% | 0.39 | 12 | 32 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 15 | +1.49c | 54% | 0.50 | 13 | 17 | PROMISING (edge, luck not ruled out) |
 | `0x7bc14171cc...` | 15 | +1.09c | 53% | 0.50 | 13 | 18 | PROMISING (edge, luck not ruled out) |
-| `0x60a92c8620...` | 19 | +1.00c | 56% | 0.41 | 14 | 36 | PROMISING (edge, luck not ruled out) |
+| `0x60a92c8620...` | 19 | +1.00c | 56% | 0.41 | 14 | 37 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
 
@@ -38,8 +38,8 @@ The grading below is exactly what separates the two.
 | `0x74471a007d...` | 14 | +2.93c | 57% | 0.39 | 12 | 32 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 15 | +1.49c | 54% | 0.50 | 13 | 17 | PROMISING (edge, luck not ruled out) |
 | `0x7bc14171cc...` | 15 | +1.09c | 53% | 0.50 | 13 | 18 | PROMISING (edge, luck not ruled out) |
-| `0x60a92c8620...` | 19 | +1.00c | 56% | 0.41 | 14 | 36 | PROMISING (edge, luck not ruled out) |
-| `0x122cb94c43...` | 19 | +0.53c | 67% | 0.12 | 16 | 38 | NOISE (busy, not sharp) |
+| `0x60a92c8620...` | 19 | +1.00c | 56% | 0.41 | 14 | 37 | PROMISING (edge, luck not ruled out) |
+| `0x122cb94c43...` | 19 | +0.53c | 67% | 0.12 | 18 | 40 | NOISE (busy, not sharp) |
 | `0xd218e47477...` | 16 | +0.14c | 50% | 0.61 | 15 | 20 | NOISE (busy, not sharp) |
 | `0x8c66e28fbe...` | 15 | +0.09c | 50% | 0.61 | 9 | 18 | NOISE (busy, not sharp) |
 | `0x21e25662e5...` | 27 | +0.02c | 56% | 0.41 | 11 | 39 | NOISE (busy, not sharp) |
