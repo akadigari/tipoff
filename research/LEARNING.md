@@ -1,6 +1,6 @@
 # What the scanner has learned about itself
 
-_Auto-generated 2026-08-01T14:39:12Z. 10000 candidates logged, 5690 with a filled 24h forward price._
+_Auto-generated 2026-08-01T16:09:43Z. 10000 candidates logged, 5708 with a filled 24h forward price._
 
 Every row is scored on the move that followed it, in the direction
 the scanner picked. Positive means the market kept going our way,
@@ -18,9 +18,9 @@ The one test that matters most. Alerted rows should beat filtered rows. If they 
 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
-| alerted (passed gate and score) | 57 | +0.34c | -1.00c | 47% | NOISE (no measurable edge) |
-| filtered out | 5415 | -0.42c | -0.00c | 48% | NOISE (no measurable edge) |
-| monitor (strong but gated) | 218 | -1.28c | +0.00c | 46% | FADE (signal points the wrong way) |
+| alerted (passed gate and score) | 56 | +0.64c | -0.55c | 48% | NOISE (no measurable edge) |
+| filtered out | 5432 | -0.46c | +0.00c | 48% | NOISE (no measurable edge) |
+| monitor (strong but gated) | 220 | -1.22c | +0.00c | 46% | FADE (signal points the wrong way) |
 
 ## Per trigger
 
@@ -31,25 +31,25 @@ A trigger that reads FADE is pointing the wrong way and is a candidate for inver
 | chatter | 3 | +3.03c | +1.00c | 100% | INSUFFICIENT DATA |
 | fresh_wallet | 13 | +2.80c | +2.00c | 62% | INSUFFICIENT DATA |
 | coordination | 2 | +2.30c | +2.30c | 100% | INSUFFICIENT DATA |
-| large_trade | 1971 | -0.23c | -0.00c | 53% | NOISE (no measurable edge) |
-| volume_spike | 4679 | -0.30c | +0.00c | 48% | NOISE (no measurable edge) |
-| repeat_actor | 1319 | -0.37c | -0.00c | 53% | NOISE (no measurable edge) |
-| within_trader | 841 | -0.48c | -0.00c | 52% | NOISE (no measurable edge) |
-| insiderable | 630 | -0.50c | +0.00c | 46% | NOISE (no measurable edge) |
-| cross_platform | 95 | -0.80c | +0.00c | 49% | NOISE (no measurable edge) |
-| price_jump | 1181 | -1.29c | -0.55c | 47% | FADE (signal points the wrong way) |
-| price_impact | 284 | -1.32c | -1.00c | 45% | FADE (signal points the wrong way) |
+| large_trade | 1974 | -0.23c | -0.00c | 53% | NOISE (no measurable edge) |
+| volume_spike | 4692 | -0.32c | +0.00c | 48% | NOISE (no measurable edge) |
+| repeat_actor | 1323 | -0.34c | -0.00c | 53% | NOISE (no measurable edge) |
+| within_trader | 846 | -0.44c | +0.00c | 53% | NOISE (no measurable edge) |
+| insiderable | 629 | -0.47c | -0.00c | 46% | NOISE (no measurable edge) |
+| cross_platform | 96 | -0.77c | +0.00c | 51% | NOISE (no measurable edge) |
+| price_impact | 285 | -1.37c | -1.00c | 45% | FADE (signal points the wrong way) |
+| price_jump | 1194 | -1.40c | -1.00c | 47% | FADE (signal points the wrong way) |
 | thin_market | 42 | -1.86c | -0.47c | 35% | FADE (signal points the wrong way) |
 
 ## Per category
 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
-| sports | 15 | +1.20c | -0.00c | 50% | INSUFFICIENT DATA |
-| entertainment | 377 | +0.41c | +0.00c | 50% | NOISE (no measurable edge) |
-| crypto | 546 | -0.05c | +0.00c | 50% | NOISE (no measurable edge) |
-| politics | 2192 | -0.30c | +0.00c | 47% | NOISE (no measurable edge) |
-| other | 2560 | -0.79c | +0.00c | 48% | NOISE (no measurable edge) |
+| sports | 16 | +0.75c | -0.00c | 46% | INSUFFICIENT DATA |
+| entertainment | 377 | +0.48c | +0.00c | 51% | NOISE (no measurable edge) |
+| crypto | 551 | -0.12c | -0.00c | 50% | NOISE (no measurable edge) |
+| politics | 2204 | -0.31c | +0.00c | 47% | NOISE (no measurable edge) |
+| other | 2560 | -0.85c | +0.00c | 48% | NOISE (no measurable edge) |
 
 ## Per score band
 
@@ -57,10 +57,10 @@ These should improve as the score rises. If they do not, the point weights are w
 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
-| 55 to 69 | 849 | -0.08c | +0.00c | 52% | NOISE (no measurable edge) |
-| under 40 | 3412 | -0.36c | +0.00c | 46% | NOISE (no measurable edge) |
-| 40 to 54 | 812 | -0.60c | +0.00c | 49% | NOISE (no measurable edge) |
-| 70+ | 617 | -1.23c | +0.00c | 51% | FADE (signal points the wrong way) |
+| 55 to 69 | 850 | -0.06c | +0.00c | 53% | NOISE (no measurable edge) |
+| under 40 | 3421 | -0.40c | +0.00c | 46% | NOISE (no measurable edge) |
+| 40 to 54 | 813 | -0.65c | +0.00c | 49% | NOISE (no measurable edge) |
+| 70+ | 624 | -1.24c | +0.00c | 51% | FADE (signal points the wrong way) |
 
 ## Per insiderability tier
 
@@ -68,8 +68,8 @@ These should improve as the score rises. If they do not, the point weights are w
 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
-| normal | 5060 | -0.44c | +0.00c | 48% | NOISE (no measurable edge) |
-| high | 630 | -0.50c | +0.00c | 46% | NOISE (no measurable edge) |
+| high | 629 | -0.47c | -0.00c | 46% | NOISE (no measurable edge) |
+| normal | 5079 | -0.48c | +0.00c | 48% | NOISE (no measurable edge) |
 
 ## Per time-to-resolution (the accurate-time-to-bet table)
 
@@ -78,18 +78,18 @@ Sorted by average, but read it in time order too. The strongest timing lever in 
 | Bucket | Samples | Avg move | Median | Moved our way | Verdict |
 |---|---|---|---|---|---|
 | under 1 day | 27 | +5.21c | +1.95c | 56% | INSUFFICIENT DATA |
-| 3 to 7 days | 548 | +0.41c | +0.27c | 52% | NOISE (no measurable edge) |
-| over a month | 3600 | -0.35c | +0.00c | 47% | NOISE (no measurable edge) |
-| 1 to 4 weeks | 1089 | -1.07c | +0.00c | 48% | FADE (signal points the wrong way) |
-| 1 to 3 days | 337 | -1.19c | -0.20c | 49% | FADE (signal points the wrong way) |
+| 3 to 7 days | 548 | +0.33c | +0.22c | 52% | NOISE (no measurable edge) |
+| over a month | 3627 | -0.40c | -0.00c | 47% | NOISE (no measurable edge) |
+| 1 to 4 weeks | 1080 | -1.05c | +0.00c | 48% | FADE (signal points the wrong way) |
+| 1 to 3 days | 340 | -1.16c | -0.17c | 49% | FADE (signal points the wrong way) |
 
 ## Horizon check
 
 | Horizon | Samples | Avg move | Moved our way |
 |---|---|---|---|
-| p_1h (alerted only) | 83 | -0.03c | 45% |
-| p_6h (alerted only) | 77 | -0.24c | 47% |
-| p_24h (alerted only) | 57 | +0.34c | 47% |
+| p_1h (alerted only) | 83 | +0.14c | 45% |
+| p_6h (alerted only) | 77 | -0.72c | 45% |
+| p_24h (alerted only) | 56 | +0.64c | 48% |
 
 ## How to act on this
 
