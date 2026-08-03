@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-03T19:50:28Z. 1292 flagged wallets, 20 with enough graded trades to judge, 2 that beat a coin flip._
+_Auto-generated 2026-08-03T21:15:30Z. 1295 flagged wallets, 20 with enough graded trades to judge, 2 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -19,7 +19,7 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xeb6f0a13ea...` | 14 | +5.83c | 100% | 0.00 | 5 | 26 | WATCH (beats luck) |
+| `0xeb6f0a13ea...` | 15 | +5.57c | 100% | 0.00 | 5 | 26 | WATCH (beats luck) |
 | `0x30e443872d...` | 12 | +3.02c | 100% | 0.00 | 8 | 15 | WATCH (beats luck) |
 
 ## Promising (edge, needs more data to rule out luck)
@@ -28,7 +28,7 @@ The grading below is exactly what separates the two.
 |---|---|---|---|---|---|---|---|
 | `0x74471a007d...` | 12 | +3.35c | 58% | 0.39 | 10 | 35 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 22 | +3.25c | 60% | 0.25 | 21 | 27 | PROMISING (edge, luck not ruled out) |
-| `0xcc500cbcc8...` | 12 | +3.10c | 67% | 0.19 | 10 | 29 | PROMISING (edge, luck not ruled out) |
+| `0xcc500cbcc8...` | 12 | +3.10c | 67% | 0.19 | 10 | 30 | PROMISING (edge, luck not ruled out) |
 | `0x122cb94c43...` | 23 | +2.26c | 68% | 0.07 | 21 | 46 | PROMISING (edge, luck not ruled out) |
 | `0x8c66e28fbe...` | 13 | +1.42c | 58% | 0.39 | 8 | 20 | PROMISING (edge, luck not ruled out) |
 | `0x60a92c8620...` | 19 | +1.33c | 63% | 0.18 | 14 | 38 | PROMISING (edge, luck not ruled out) |
@@ -37,10 +37,10 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xeb6f0a13ea...` | 14 | +5.83c | 100% | 0.00 | 5 | 26 | WATCH (beats luck) |
+| `0xeb6f0a13ea...` | 15 | +5.57c | 100% | 0.00 | 5 | 26 | WATCH (beats luck) |
 | `0x74471a007d...` | 12 | +3.35c | 58% | 0.39 | 10 | 35 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 22 | +3.25c | 60% | 0.25 | 21 | 27 | PROMISING (edge, luck not ruled out) |
-| `0xcc500cbcc8...` | 12 | +3.10c | 67% | 0.19 | 10 | 29 | PROMISING (edge, luck not ruled out) |
+| `0xcc500cbcc8...` | 12 | +3.10c | 67% | 0.19 | 10 | 30 | PROMISING (edge, luck not ruled out) |
 | `0x30e443872d...` | 12 | +3.02c | 100% | 0.00 | 8 | 15 | WATCH (beats luck) |
 | `0x122cb94c43...` | 23 | +2.26c | 68% | 0.07 | 21 | 46 | PROMISING (edge, luck not ruled out) |
 | `0x8c66e28fbe...` | 13 | +1.42c | 58% | 0.39 | 8 | 20 | PROMISING (edge, luck not ruled out) |
