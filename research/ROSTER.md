@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-04T13:06:58Z. 1307 flagged wallets, 19 with enough graded trades to judge, 2 that beat a coin flip._
+_Auto-generated 2026-08-04T15:32:20Z. 1308 flagged wallets, 19 with enough graded trades to judge, 2 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -28,7 +28,7 @@ The grading below is exactly what separates the two.
 |---|---|---|---|---|---|---|---|
 | `0x74471a007d...` | 12 | +3.35c | 58% | 0.39 | 11 | 36 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 24 | +3.16c | 64% | 0.14 | 23 | 29 | PROMISING (edge, luck not ruled out) |
-| `0x122cb94c43...` | 22 | +2.33c | 67% | 0.10 | 20 | 47 | PROMISING (edge, luck not ruled out) |
+| `0x122cb94c43...` | 22 | +2.33c | 67% | 0.10 | 20 | 48 | PROMISING (edge, luck not ruled out) |
 | `0xa65c87d5fa...` | 12 | +1.95c | 58% | 0.39 | 10 | 17 | PROMISING (edge, luck not ruled out) |
 | `0xcc500cbcc8...` | 13 | +1.63c | 62% | 0.29 | 12 | 32 | PROMISING (edge, luck not ruled out) |
 | `0x60a92c8620...` | 19 | +1.61c | 63% | 0.18 | 13 | 39 | PROMISING (edge, luck not ruled out) |
@@ -41,7 +41,7 @@ The grading below is exactly what separates the two.
 | `0x74471a007d...` | 12 | +3.35c | 58% | 0.39 | 11 | 36 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 24 | +3.16c | 64% | 0.14 | 23 | 29 | PROMISING (edge, luck not ruled out) |
 | `0x30e443872d...` | 12 | +3.02c | 100% | 0.00 | 7 | 15 | WATCH (beats luck) |
-| `0x122cb94c43...` | 22 | +2.33c | 67% | 0.10 | 20 | 47 | PROMISING (edge, luck not ruled out) |
+| `0x122cb94c43...` | 22 | +2.33c | 67% | 0.10 | 20 | 48 | PROMISING (edge, luck not ruled out) |
 | `0xa65c87d5fa...` | 12 | +1.95c | 58% | 0.39 | 10 | 17 | PROMISING (edge, luck not ruled out) |
 | `0xcc500cbcc8...` | 13 | +1.63c | 62% | 0.29 | 12 | 32 | PROMISING (edge, luck not ruled out) |
 | `0x60a92c8620...` | 19 | +1.61c | 63% | 0.18 | 13 | 39 | PROMISING (edge, luck not ruled out) |
@@ -50,7 +50,7 @@ The grading below is exactly what separates the two.
 | `0xf705fa0452...` | 18 | +0.03c | 59% | 0.31 | 16 | 46 | NOISE (busy, not sharp) |
 | `0x21e25662e5...` | 26 | +0.00c | 53% | 0.50 | 10 | 39 | NOISE (busy, not sharp) |
 | `0x0c0e270cf8...` | 13 | -0.34c | 73% | 0.11 | 9 | 24 | NOISE (busy, not sharp) |
-| `0xe734e7bf7c...` | 41 | -0.54c | 52% | 0.44 | 23 | 60 | NOISE (busy, not sharp) |
+| `0xe734e7bf7c...` | 41 | -0.54c | 52% | 0.44 | 23 | 61 | NOISE (busy, not sharp) |
 | `0x06dc51826b...` | 33 | -1.66c | 61% | 0.15 | 48 | 82 | FADE (bets the wrong way) |
 | `0xfc2f4f50ce...` | 13 | -1.68c | 46% | 0.71 | 11 | 26 | FADE (bets the wrong way) |
 | `0x511f9c7714...` | 20 | -2.59c | 50% | 0.59 | 20 | 59 | FADE (bets the wrong way) |
