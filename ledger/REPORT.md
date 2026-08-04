@@ -1,6 +1,6 @@
 # Tipoff: sim-trading report
 
-_Auto-generated 2026-08-04T03:30:11Z. 289 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
+_Auto-generated 2026-08-04T06:36:32Z. 290 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
@@ -12,9 +12,9 @@ A category is only called FOLLOWABLE with >= 20 graded alerts, avg CLV
 | entertainment | 8 | 8 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
 | politics | 29 | 29 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
 | sports | 0 | 0 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
-| crypto | 17 | 17 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
+| crypto | 18 | 18 | 0 | 0% | +0.0% | +0.0c | INSUFFICIENT DATA |
 | other | 63 | 61 | 2 | 0% | -100.0% | +4.5c | INSUFFICIENT DATA |
-| ALL | 117 | 115 | 2 | 0% | -100.0% | +4.5c | INSUFFICIENT DATA |
+| ALL | 118 | 116 | 2 | 0% | -100.0% | +4.5c | INSUFFICIENT DATA |
 
 **Informed-flow reads** (was the alert actually informed money, judged by where the line went): 0 informed-like · 0 early-but-wrong (real signal, unlucky outcome) · 0 late-money · 2 neutral
 
