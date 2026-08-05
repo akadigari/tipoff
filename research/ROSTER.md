@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-05T10:44:48Z. 1298 flagged wallets, 22 with enough graded trades to judge, 2 that beat a coin flip._
+_Auto-generated 2026-08-05T13:00:05Z. 1294 flagged wallets, 22 with enough graded trades to judge, 2 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -33,7 +33,6 @@ The grading below is exactly what separates the two.
 | `0xcc500cbcc8...` | 15 | +1.98c | 67% | 0.15 | 11 | 32 | PROMISING (edge, luck not ruled out) |
 | `0xbaa2bcb543...` | 12 | +1.77c | 70% | 0.17 | 16 | 25 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 26 | +1.57c | 58% | 0.27 | 23 | 29 | PROMISING (edge, luck not ruled out) |
-| `0x74471a007d...` | 13 | +1.10c | 54% | 0.50 | 11 | 36 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
 
@@ -48,16 +47,16 @@ The grading below is exactly what separates the two.
 | `0xcc500cbcc8...` | 15 | +1.98c | 67% | 0.15 | 11 | 32 | PROMISING (edge, luck not ruled out) |
 | `0xbaa2bcb543...` | 12 | +1.77c | 70% | 0.17 | 16 | 25 | PROMISING (edge, luck not ruled out) |
 | `0xe234959595...` | 26 | +1.57c | 58% | 0.27 | 23 | 29 | PROMISING (edge, luck not ruled out) |
-| `0x74471a007d...` | 13 | +1.10c | 54% | 0.50 | 11 | 36 | PROMISING (edge, luck not ruled out) |
 | `0x7bc14171cc...` | 13 | +0.99c | 54% | 0.50 | 13 | 19 | NOISE (busy, not sharp) |
-| `0xd218e47477...` | 14 | +0.16c | 50% | 0.62 | 14 | 20 | NOISE (busy, not sharp) |
+| `0x74471a007d...` | 12 | +0.71c | 50% | 0.61 | 11 | 36 | NOISE (busy, not sharp) |
+| `0xd218e47477...` | 12 | +0.16c | 38% | 0.86 | 13 | 20 | NOISE (busy, not sharp) |
 | `0x60a92c8620...` | 19 | +0.14c | 58% | 0.32 | 13 | 40 | NOISE (busy, not sharp) |
 | `0x21e25662e5...` | 20 | +0.00c | 54% | 0.50 | 9 | 39 | NOISE (busy, not sharp) |
 | `0xf705fa0452...` | 20 | -0.05c | 53% | 0.50 | 17 | 48 | NOISE (busy, not sharp) |
 | `0x0c0e270cf8...` | 13 | -0.34c | 73% | 0.11 | 9 | 24 | NOISE (busy, not sharp) |
 | `0xbd0477e08d...` | 13 | -0.85c | 54% | 0.50 | 10 | 22 | NOISE (busy, not sharp) |
 | `0x06dc51826b...` | 33 | -0.87c | 64% | 0.08 | 48 | 83 | NOISE (busy, not sharp) |
-| `0xe734e7bf7c...` | 40 | -1.00c | 51% | 0.50 | 22 | 62 | NOISE (busy, not sharp) |
+| `0xe734e7bf7c...` | 42 | -1.81c | 49% | 0.62 | 22 | 62 | FADE (bets the wrong way) |
 | `0xa8c63f775d...` | 13 | -2.79c | 58% | 0.39 | 13 | 16 | FADE (bets the wrong way) |
 
 ## Documented known insiders (Phase B watch targets)
