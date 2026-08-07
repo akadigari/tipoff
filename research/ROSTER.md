@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-07T17:56:02Z. 1281 flagged wallets, 19 with enough graded trades to judge, 5 that beat a coin flip._
+_Auto-generated 2026-08-07T19:09:40Z. 1282 flagged wallets, 19 with enough graded trades to judge, 5 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
