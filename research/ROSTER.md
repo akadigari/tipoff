@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-09T17:40:14Z. 1252 flagged wallets, 17 with enough graded trades to judge, 3 that beat a coin flip._
+_Auto-generated 2026-08-09T18:54:39Z. 1250 flagged wallets, 17 with enough graded trades to judge, 3 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -42,14 +42,14 @@ The grading below is exactly what separates the two.
 | `0xc7e53ac4a7...` | 12 | +2.30c | 50% | 0.61 | 9 | 15 | PROMISING (edge, luck not ruled out) |
 | `0x122cb94c43...` | 23 | +2.07c | 59% | 0.26 | 19 | 58 | PROMISING (edge, luck not ruled out) |
 | `0x60a92c8620...` | 13 | +0.90c | 69% | 0.13 | 10 | 43 | NOISE (busy, not sharp) |
-| `0x3eae57986b...` | 15 | +0.78c | 69% | 0.13 | 17 | 35 | NOISE (busy, not sharp) |
-| `0xe234959595...` | 20 | +0.55c | 56% | 0.41 | 18 | 30 | NOISE (busy, not sharp) |
-| `0xf705fa0452...` | 18 | +0.27c | 53% | 0.50 | 20 | 55 | NOISE (busy, not sharp) |
+| `0x3eae57986b...` | 16 | +0.73c | 69% | 0.13 | 17 | 35 | NOISE (busy, not sharp) |
+| `0xe234959595...` | 19 | +0.56c | 53% | 0.50 | 16 | 30 | NOISE (busy, not sharp) |
+| `0xe734e7bf7c...` | 36 | -0.03c | 51% | 0.50 | 21 | 77 | NOISE (busy, not sharp) |
 | `0x6d9fc316c3...` | 12 | -0.03c | 60% | 0.38 | 15 | 33 | NOISE (busy, not sharp) |
 | `0x0c0e270cf8...` | 13 | -0.12c | 73% | 0.11 | 8 | 25 | NOISE (busy, not sharp) |
-| `0xe734e7bf7c...` | 37 | -0.31c | 50% | 0.57 | 21 | 77 | NOISE (busy, not sharp) |
+| `0xf705fa0452...` | 17 | -0.13c | 50% | 0.60 | 20 | 55 | NOISE (busy, not sharp) |
 | `0x06dc51826b...` | 28 | -0.51c | 67% | 0.06 | 44 | 91 | NOISE (busy, not sharp) |
-| `0xbd0477e08d...` | 16 | -0.65c | 62% | 0.23 | 10 | 27 | NOISE (busy, not sharp) |
+| `0xbd0477e08d...` | 16 | -0.65c | 62% | 0.23 | 10 | 28 | NOISE (busy, not sharp) |
 | `0x0f7f9903f4...` | 14 | -2.23c | 43% | 0.79 | 12 | 16 | FADE (bets the wrong way) |
 | `0x511f9c7714...` | 17 | -2.24c | 64% | 0.21 | 21 | 70 | FADE (bets the wrong way) |
 
