@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-14T19:07:22Z. 1200 flagged wallets, 16 with enough graded trades to judge, 4 that beat a coin flip._
+_Auto-generated 2026-08-14T19:53:32Z. 1200 flagged wallets, 17 with enough graded trades to judge, 4 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -21,13 +21,14 @@ The grading below is exactly what separates the two.
 |---|---|---|---|---|---|---|---|
 | `0x7e5972bfc2...` | 12 | +8.60c | 83% | 0.02 | 9 | 22 | WATCH (beats luck) |
 | `0x23d81ba937...` | 15 | +8.53c | 79% | 0.03 | 11 | 28 | WATCH (beats luck) |
-| `0xfc2f4f50ce...` | 14 | +6.22c | 92% | 0.00 | 11 | 45 | WATCH (beats luck) |
+| `0xfc2f4f50ce...` | 15 | +5.80c | 92% | 0.00 | 11 | 45 | WATCH (beats luck) |
 | `0x06dc51826b...` | 33 | +1.12c | 77% | 0.00 | 34 | 123 | WATCH (beats luck) |
 
 ## Promising (edge, needs more data to rule out luck)
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
+| `0xdf44c3e8ce...` | 12 | +3.77c | 60% | 0.38 | 12 | 18 | PROMISING (edge, luck not ruled out) |
 | `0xbd0477e08d...` | 16 | +2.02c | 56% | 0.40 | 11 | 33 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
@@ -36,7 +37,8 @@ The grading below is exactly what separates the two.
 |---|---|---|---|---|---|---|---|
 | `0x7e5972bfc2...` | 12 | +8.60c | 83% | 0.02 | 9 | 22 | WATCH (beats luck) |
 | `0x23d81ba937...` | 15 | +8.53c | 79% | 0.03 | 11 | 28 | WATCH (beats luck) |
-| `0xfc2f4f50ce...` | 14 | +6.22c | 92% | 0.00 | 11 | 45 | WATCH (beats luck) |
+| `0xfc2f4f50ce...` | 15 | +5.80c | 92% | 0.00 | 11 | 45 | WATCH (beats luck) |
+| `0xdf44c3e8ce...` | 12 | +3.77c | 60% | 0.38 | 12 | 18 | PROMISING (edge, luck not ruled out) |
 | `0xbd0477e08d...` | 16 | +2.02c | 56% | 0.40 | 11 | 33 | PROMISING (edge, luck not ruled out) |
 | `0x06dc51826b...` | 33 | +1.12c | 77% | 0.00 | 34 | 123 | WATCH (beats luck) |
 | `0x122cb94c43...` | 20 | +0.68c | 53% | 0.50 | 23 | 78 | NOISE (busy, not sharp) |
