@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-19T22:35:29Z. 1147 flagged wallets, 13 with enough graded trades to judge, 2 that beat a coin flip._
+_Auto-generated 2026-08-19T23:31:50Z. 1147 flagged wallets, 13 with enough graded trades to judge, 2 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -19,7 +19,7 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0x06dc51826b...` | 29 | +1.59c | 72% | 0.01 | 35 | 156 | WATCH (beats luck) |
+| `0x06dc51826b...` | 29 | +1.59c | 72% | 0.01 | 36 | 157 | WATCH (beats luck) |
 | `0xe734e7bf7c...` | 19 | +1.47c | 74% | 0.03 | 6 | 105 | WATCH (beats luck) |
 
 ## Promising (edge, needs more data to rule out luck)
@@ -32,7 +32,7 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0x06dc51826b...` | 29 | +1.59c | 72% | 0.01 | 35 | 156 | WATCH (beats luck) |
+| `0x06dc51826b...` | 29 | +1.59c | 72% | 0.01 | 36 | 157 | WATCH (beats luck) |
 | `0xe734e7bf7c...` | 19 | +1.47c | 74% | 0.03 | 6 | 105 | WATCH (beats luck) |
 | `0xfc2f4f50ce...` | 13 | +1.12c | 64% | 0.27 | 8 | 49 | PROMISING (edge, luck not ruled out) |
 | `0xeb490d0534...` | 18 | +0.86c | 59% | 0.31 | 10 | 43 | NOISE (busy, not sharp) |
@@ -44,7 +44,7 @@ The grading below is exactly what separates the two.
 | `0x122cb94c43...` | 28 | -0.48c | 50% | 0.58 | 35 | 108 | NOISE (busy, not sharp) |
 | `0x6d9fc316c3...` | 16 | -0.55c | 33% | 0.94 | 9 | 50 | NOISE (busy, not sharp) |
 | `0xe234959595...` | 13 | -2.03c | 27% | 0.96 | 11 | 47 | FADE (bets the wrong way) |
-| `0xb10047d6a2...` | 16 | -4.17c | 50% | 0.61 | 16 | 58 | FADE (bets the wrong way) |
+| `0xb10047d6a2...` | 15 | -4.85c | 46% | 0.71 | 15 | 58 | FADE (bets the wrong way) |
 
 ## Documented known insiders (Phase B watch targets)
 
