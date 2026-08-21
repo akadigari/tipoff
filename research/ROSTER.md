@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-21T01:51:45Z. 1158 flagged wallets, 11 with enough graded trades to judge, 2 that beat a coin flip._
+_Auto-generated 2026-08-21T03:11:39Z. 1155 flagged wallets, 11 with enough graded trades to judge, 2 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -26,21 +26,21 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xf705fa0452...` | 15 | +4.96c | 64% | 0.21 | 31 | 110 | PROMISING (edge, luck not ruled out) |
+| `0xf705fa0452...` | 16 | +5.38c | 67% | 0.15 | 33 | 113 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
 | `0xcc500cbcc8...` | 12 | +11.96c | 100% | 0.00 | 12 | 51 | WATCH (beats luck) |
-| `0xf705fa0452...` | 15 | +4.96c | 64% | 0.21 | 31 | 110 | PROMISING (edge, luck not ruled out) |
+| `0xf705fa0452...` | 16 | +5.38c | 67% | 0.15 | 33 | 113 | PROMISING (edge, luck not ruled out) |
 | `0x1465b79bff...` | 16 | +2.99c | 79% | 0.03 | 12 | 63 | WATCH (beats luck) |
 | `0xeb490d0534...` | 15 | +0.87c | 64% | 0.21 | 10 | 47 | NOISE (busy, not sharp) |
 | `0x511f9c7714...` | 13 | +0.71c | 54% | 0.50 | 22 | 102 | NOISE (busy, not sharp) |
 | `0xc2de93c744...` | 13 | -0.09c | 62% | 0.29 | 3 | 17 | NOISE (busy, not sharp) |
-| `0x122cb94c43...` | 29 | -0.19c | 56% | 0.35 | 37 | 116 | NOISE (busy, not sharp) |
+| `0x122cb94c43...` | 29 | -0.19c | 56% | 0.35 | 36 | 116 | NOISE (busy, not sharp) |
 | `0xcfee7c48b3...` | 16 | -0.41c | 33% | 0.93 | 5 | 19 | NOISE (busy, not sharp) |
-| `0x06dc51826b...` | 31 | -1.41c | 65% | 0.08 | 46 | 179 | FADE (bets the wrong way) |
+| `0x06dc51826b...` | 30 | -1.57c | 63% | 0.10 | 45 | 180 | FADE (bets the wrong way) |
 | `0xe734e7bf7c...` | 14 | -2.26c | 57% | 0.39 | 6 | 109 | FADE (bets the wrong way) |
 | `0x6765c1c000...` | 19 | -10.16c | 27% | 0.98 | 5 | 35 | FADE (bets the wrong way) |
 
