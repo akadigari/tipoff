@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-22T03:02:53Z. 1178 flagged wallets, 10 with enough graded trades to judge, 3 that beat a coin flip._
+_Auto-generated 2026-08-22T03:50:09Z. 1174 flagged wallets, 10 with enough graded trades to judge, 3 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -19,7 +19,7 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xcc500cbcc8...` | 13 | +13.49c | 100% | 0.00 | 13 | 54 | WATCH (beats luck) |
+| `0xcc500cbcc8...` | 13 | +13.49c | 100% | 0.00 | 15 | 56 | WATCH (beats luck) |
 | `0x1465b79bff...` | 20 | +3.09c | 83% | 0.00 | 12 | 67 | WATCH (beats luck) |
 | `0x879247bf75...` | 12 | +2.50c | 92% | 0.00 | 7 | 21 | WATCH (beats luck) |
 
@@ -27,20 +27,20 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xf705fa0452...` | 20 | +7.99c | 68% | 0.08 | 46 | 137 | PROMISING (edge, luck not ruled out) |
+| `0xf705fa0452...` | 21 | +7.56c | 65% | 0.13 | 46 | 139 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xcc500cbcc8...` | 13 | +13.49c | 100% | 0.00 | 13 | 54 | WATCH (beats luck) |
-| `0xf705fa0452...` | 20 | +7.99c | 68% | 0.08 | 46 | 137 | PROMISING (edge, luck not ruled out) |
+| `0xcc500cbcc8...` | 13 | +13.49c | 100% | 0.00 | 15 | 56 | WATCH (beats luck) |
+| `0xf705fa0452...` | 21 | +7.56c | 65% | 0.13 | 46 | 139 | PROMISING (edge, luck not ruled out) |
 | `0x1465b79bff...` | 20 | +3.09c | 83% | 0.00 | 12 | 67 | WATCH (beats luck) |
 | `0x879247bf75...` | 12 | +2.50c | 92% | 0.00 | 7 | 21 | WATCH (beats luck) |
 | `0x511f9c7714...` | 16 | +0.52c | 50% | 0.61 | 20 | 104 | NOISE (busy, not sharp) |
-| `0x122cb94c43...` | 29 | +0.47c | 54% | 0.43 | 32 | 118 | NOISE (busy, not sharp) |
+| `0x122cb94c43...` | 29 | +0.47c | 54% | 0.43 | 31 | 118 | NOISE (busy, not sharp) |
 | `0xcfee7c48b3...` | 14 | -0.46c | 36% | 0.89 | 5 | 19 | NOISE (busy, not sharp) |
-| `0xe734e7bf7c...` | 15 | -2.94c | 47% | 0.70 | 5 | 114 | FADE (bets the wrong way) |
+| `0xe734e7bf7c...` | 14 | -2.40c | 50% | 0.61 | 5 | 114 | FADE (bets the wrong way) |
 | `0x06dc51826b...` | 30 | -5.68c | 57% | 0.29 | 48 | 190 | FADE (bets the wrong way) |
 | `0x6765c1c000...` | 15 | -13.04c | 8% | 1.00 | 5 | 36 | FADE (bets the wrong way) |
 
