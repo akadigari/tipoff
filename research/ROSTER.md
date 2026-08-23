@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-23T13:40:32Z. 1204 flagged wallets, 12 with enough graded trades to judge, 1 that beat a coin flip._
+_Auto-generated 2026-08-23T14:33:09Z. 1202 flagged wallets, 12 with enough graded trades to judge, 1 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -25,18 +25,18 @@ The grading below is exactly what separates the two.
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
-| `0xf705fa0452...` | 42 | +5.07c | 61% | 0.11 | 50 | 162 | PROMISING (edge, luck not ruled out) |
-| `0x1465b79bff...` | 21 | +2.68c | 68% | 0.08 | 12 | 71 | PROMISING (edge, luck not ruled out) |
+| `0xf705fa0452...` | 42 | +5.07c | 61% | 0.11 | 50 | 163 | PROMISING (edge, luck not ruled out) |
+| `0x1465b79bff...` | 21 | +2.68c | 68% | 0.08 | 12 | 72 | PROMISING (edge, luck not ruled out) |
 
 ## Top of the pack by average (all verdicts)
 
 | Wallet | Graded | Avg move | Hit rate | Luck p | Markets | Flags | Verdict |
 |---|---|---|---|---|---|---|---|
 | `0xcc500cbcc8...` | 16 | +7.99c | 80% | 0.02 | 18 | 64 | WATCH (beats luck) |
-| `0xf705fa0452...` | 42 | +5.07c | 61% | 0.11 | 50 | 162 | PROMISING (edge, luck not ruled out) |
-| `0x1465b79bff...` | 21 | +2.68c | 68% | 0.08 | 12 | 71 | PROMISING (edge, luck not ruled out) |
+| `0xf705fa0452...` | 42 | +5.07c | 61% | 0.11 | 50 | 163 | PROMISING (edge, luck not ruled out) |
+| `0x1465b79bff...` | 21 | +2.68c | 68% | 0.08 | 12 | 72 | PROMISING (edge, luck not ruled out) |
 | `0x122cb94c43...` | 28 | +0.88c | 63% | 0.12 | 30 | 123 | NOISE (busy, not sharp) |
-| `0x252d7bae5e...` | 14 | +0.60c | 46% | 0.71 | 20 | 36 | NOISE (busy, not sharp) |
+| `0x252d7bae5e...` | 13 | +0.80c | 50% | 0.61 | 19 | 36 | NOISE (busy, not sharp) |
 | `0x6d9fc316c3...` | 14 | +0.59c | 60% | 0.38 | 16 | 64 | NOISE (busy, not sharp) |
 | `0x511f9c7714...` | 18 | +0.48c | 53% | 0.50 | 20 | 104 | NOISE (busy, not sharp) |
 | `0xcfee7c48b3...` | 13 | -0.46c | 40% | 0.83 | 4 | 19 | NOISE (busy, not sharp) |
