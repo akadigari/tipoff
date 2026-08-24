@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-24T21:38:17Z. 1203 flagged wallets, 19 with enough graded trades to judge, 1 that beat a coin flip._
+_Auto-generated 2026-08-24T22:37:46Z. 1202 flagged wallets, 18 with enough graded trades to judge, 1 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -43,16 +43,15 @@ The grading below is exactly what separates the two.
 | `0x401ee31e9e...` | 14 | +0.79c | 58% | 0.39 | 8 | 20 | NOISE (busy, not sharp) |
 | `0x122cb94c43...` | 29 | +0.77c | 61% | 0.17 | 26 | 129 | NOISE (busy, not sharp) |
 | `0xcdf82242c9...` | 12 | +0.62c | 88% | 0.04 | 14 | 33 | NOISE (busy, not sharp) |
-| `0x511f9c7714...` | 17 | +0.42c | 50% | 0.61 | 17 | 107 | NOISE (busy, not sharp) |
-| `0x6e2c3937e6...` | 12 | +0.20c | 80% | 0.06 | 10 | 33 | NOISE (busy, not sharp) |
+| `0x511f9c7714...` | 17 | +0.42c | 50% | 0.61 | 16 | 107 | NOISE (busy, not sharp) |
 | `0xc2de93c744...` | 12 | +0.08c | 67% | 0.19 | 3 | 25 | NOISE (busy, not sharp) |
 | `0xcfee7c48b3...` | 12 | -0.52c | 33% | 0.91 | 4 | 19 | NOISE (busy, not sharp) |
 | `0xe734e7bf7c...` | 21 | -1.19c | 50% | 0.59 | 8 | 124 | FADE (bets the wrong way) |
-| `0x252d7bae5e...` | 17 | -1.63c | 38% | 0.89 | 22 | 41 | FADE (bets the wrong way) |
-| `0x56e777a0ac...` | 15 | -3.40c | 53% | 0.50 | 6 | 28 | FADE (bets the wrong way) |
+| `0x252d7bae5e...` | 18 | -1.29c | 41% | 0.83 | 22 | 41 | FADE (bets the wrong way) |
+| `0x56e777a0ac...` | 15 | -3.40c | 53% | 0.50 | 6 | 29 | FADE (bets the wrong way) |
 | `0x06dc51826b...` | 42 | -6.36c | 62% | 0.08 | 60 | 214 | FADE (bets the wrong way) |
-| `0x56ad6bd059...` | 12 | -7.07c | 45% | 0.73 | 12 | 31 | FADE (bets the wrong way) |
-| `0x6765c1c000...` | 15 | -14.32c | 8% | 1.00 | 5 | 36 | FADE (bets the wrong way) |
+| `0x56ad6bd059...` | 12 | -7.07c | 45% | 0.73 | 12 | 32 | FADE (bets the wrong way) |
+| `0x6765c1c000...` | 13 | -16.54c | 0% | 1.00 | 5 | 36 | FADE (bets the wrong way) |
 
 ## Documented known insiders (Phase B watch targets)
 

@@ -1,6 +1,6 @@
 # Tipoff: sim-trading report
 
-_Auto-generated 2026-08-24T21:37:48Z. 492 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
+_Auto-generated 2026-08-24T22:37:10Z. 492 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
