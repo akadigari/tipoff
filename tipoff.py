@@ -63,6 +63,7 @@ from config import CFG
 
 ROOT = Path(__file__).resolve().parent
 STATE_FILE = ROOT / "state" / "baselines.json"
+HEARTBEAT_FILE = ROOT / "state" / "heartbeat.json"
 LEDGER_FILE = ROOT / "ledger" / "ledger.csv"
 WATCH_FILE = ROOT / "ledger" / "watch_log.csv"
 REPORT_FILE = ROOT / "ledger" / "REPORT.md"
@@ -457,6 +458,30 @@ def load_state() -> dict:
         except json.JSONDecodeError:
             print("  [warn] corrupt state file, starting fresh")
     return {"markets": {}, "meta": {}}
+
+
+def write_heartbeat(meta: dict, ts: float, alerts: int, watches: int,
+                    graded: int) -> None:
+    """Small fixed-shape file that says this desk ran and when.
+
+    baselines.json is over a megabyte, so anything that only wants to know
+    "is TIPOFF alive" should not have to parse it. Same "ts" key as the
+    other desks so one reader handles them all. The workflow already
+    commits state/, so this rides along with it.
+    """
+    try:
+        HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        HEARTBEAT_FILE.write_text(json.dumps({
+            "ts": iso_utc(ts),
+            "ok": True,
+            "mode": meta.get("mode"),
+            "tracked": meta.get("tracked"),
+            "alerts": alerts,
+            "watches": watches,
+            "graded": graded,
+        }, indent=1))
+    except Exception as e:      # never let the heartbeat break a scan
+        print(f"  heartbeat write failed: {e}")
 
 
 def save_state(state: dict) -> None:
@@ -1974,9 +1999,16 @@ def resolve_open_positions(rows: list[dict], ts: float) -> int:
     poly_rows = [r for r in open_rows if r["platform"] == "poly"]
     for i in range(0, len(poly_rows), 20):
         chunk = poly_rows[i:i + 20]
-        data = http_get_json(f"{GAMMA_BASE}/markets", [
-            ("condition_ids", r["market_id"]) for r in chunk])
-        markets = {m.get("conditionId"): m for m in (data or [])}
+        ids = [("condition_ids", r["market_id"]) for r in chunk]
+        # Gamma stopped listing closed markets by default (Aug 2026), so one
+        # query can no longer see both: the default call carries the still-open
+        # markets (closing-line refresh), closed=true carries the resolved ones
+        # (grading). Merge both before matching rows.
+        markets = {}
+        for extra in ([], [("closed", "true")]):
+            data = http_get_json(f"{GAMMA_BASE}/markets", ids + extra)
+            for m in (data or []):
+                markets[m.get("conditionId")] = m
         for row in chunk:
             m = markets.get(row["market_id"])
             if not m:
@@ -2384,6 +2416,7 @@ def main() -> int:
     meta.update({"last_run_ts": ts, "last_run": iso_utc(ts),
                  "tracked": len(state["markets"]), "mode": mode})
     save_state(state)
+    write_heartbeat(meta, ts, len(alerts), len(watches), graded)
     write_ledger(ledger)
     write_report(ledger, ts)
     append_watch_log(watches)
