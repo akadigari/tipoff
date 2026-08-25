@@ -1,6 +1,6 @@
 # Wallet roster
 
-_Auto-generated 2026-08-25T05:40:23Z. 1185 flagged wallets, 17 with enough graded trades to judge, 1 that beat a coin flip._
+_Auto-generated 2026-08-25T07:02:36Z. 1186 flagged wallets, 17 with enough graded trades to judge, 1 that beat a coin flip._
 
 Each wallet is graded on the price move that followed its flagged
 trades, in the wallet's own direction, using data the scanner
@@ -39,16 +39,16 @@ The grading below is exactly what separates the two.
 | `0xf705fa0452...` | 59 | +4.11c | 64% | 0.02 | 54 | 174 | WATCH (beats luck) |
 | `0x1465b79bff...` | 33 | +1.78c | 63% | 0.10 | 17 | 93 | PROMISING (edge, luck not ruled out) |
 | `0x6d9fc316c3...` | 17 | +1.16c | 64% | 0.27 | 16 | 67 | PROMISING (edge, luck not ruled out) |
+| `0x122cb94c43...` | 24 | +0.87c | 61% | 0.20 | 24 | 129 | NOISE (busy, not sharp) |
 | `0x000d257d2d...` | 13 | +0.86c | 73% | 0.11 | 12 | 39 | NOISE (busy, not sharp) |
-| `0x122cb94c43...` | 27 | +0.82c | 62% | 0.16 | 25 | 129 | NOISE (busy, not sharp) |
-| `0x401ee31e9e...` | 14 | +0.79c | 58% | 0.39 | 8 | 20 | NOISE (busy, not sharp) |
+| `0x401ee31e9e...` | 15 | +0.73c | 58% | 0.39 | 8 | 20 | NOISE (busy, not sharp) |
 | `0xcdf82242c9...` | 12 | +0.62c | 88% | 0.04 | 14 | 33 | NOISE (busy, not sharp) |
 | `0xc2de93c744...` | 12 | +0.08c | 67% | 0.19 | 3 | 25 | NOISE (busy, not sharp) |
 | `0x511f9c7714...` | 14 | -0.20c | 45% | 0.73 | 10 | 107 | NOISE (busy, not sharp) |
-| `0x252d7bae5e...` | 17 | -1.08c | 44% | 0.77 | 22 | 41 | FADE (bets the wrong way) |
-| `0xe734e7bf7c...` | 23 | -1.44c | 48% | 0.67 | 11 | 127 | FADE (bets the wrong way) |
+| `0x252d7bae5e...` | 16 | -0.80c | 47% | 0.70 | 22 | 41 | NOISE (busy, not sharp) |
+| `0xe734e7bf7c...` | 23 | -1.44c | 48% | 0.67 | 11 | 128 | FADE (bets the wrong way) |
 | `0x56e777a0ac...` | 14 | -3.68c | 50% | 0.61 | 6 | 31 | FADE (bets the wrong way) |
-| `0x06dc51826b...` | 44 | -7.07c | 61% | 0.09 | 65 | 221 | FADE (bets the wrong way) |
+| `0x06dc51826b...` | 44 | -7.07c | 61% | 0.09 | 66 | 223 | FADE (bets the wrong way) |
 | `0x56ad6bd059...` | 12 | -7.07c | 45% | 0.73 | 12 | 33 | FADE (bets the wrong way) |
 | `0x6765c1c000...` | 12 | -17.58c | 0% | 1.00 | 5 | 36 | FADE (bets the wrong way) |
 
