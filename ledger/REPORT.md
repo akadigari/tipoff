@@ -1,6 +1,6 @@
 # Tipoff: sim-trading report
 
-_Auto-generated 2026-08-26T01:57:11Z. 499 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
+_Auto-generated 2026-08-26T03:14:02Z. 500 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
@@ -10,11 +10,11 @@ A category is only called FOLLOWABLE with >= 20 graded alerts, avg CLV
 | Category | Alerts | Open | Graded | Win% | Avg ROI | Avg CLV | Verdict |
 |---|---|---|---|---|---|---|---|
 | entertainment | 11 | 0 | 11 | 45% | -2.9% | +4.1c | INSUFFICIENT DATA |
-| politics | 69 | 23 | 46 | 39% | -27.9% | -9.9c | NOT FOLLOWABLE: following is late money |
+| politics | 70 | 24 | 46 | 39% | -27.9% | -9.9c | NOT FOLLOWABLE: following is late money |
 | sports | 4 | 0 | 4 | 50% | -6.1% | +20.0c | INSUFFICIENT DATA |
 | crypto | 88 | 29 | 59 | 59% | +82.5% | +10.8c | FOLLOWABLE |
 | other | 155 | 50 | 105 | 55% | +50.4% | +7.2c | FOLLOWABLE |
-| ALL | 327 | 102 | 225 | 52% | +39.2% | +4.7c | FOLLOWABLE |
+| ALL | 328 | 103 | 225 | 52% | +39.2% | +4.7c | FOLLOWABLE |
 
 **Informed-flow reads** (was the alert actually informed money, judged by where the line went): 114 informed-like · 1 early-but-wrong (real signal, unlucky outcome) · 103 late-money · 7 neutral
 
