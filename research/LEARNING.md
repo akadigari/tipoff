@@ -1,6 +1,6 @@
 # What the scanner has learned about itself
 
-_Auto-generated 2026-08-28T06:53:05Z. 10000 candidates logged, 6558 with a filled 24h forward price._
+_Auto-generated 2026-08-28T20:10:29Z. 10000 candidates logged, 6558 with a filled 24h forward price._
 
 Every row is scored on the move that followed it, in the direction
 the scanner picked. Positive means the market kept going our way,
