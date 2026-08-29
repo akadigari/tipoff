@@ -1,6 +1,6 @@
 # What the scanner has learned about itself
 
-_Auto-generated 2026-08-29T04:07:08Z. 10000 candidates logged, 6529 with a filled 24h forward price._
+_Auto-generated 2026-08-29T11:01:04Z. 10000 candidates logged, 6529 with a filled 24h forward price._
 
 Every row is scored on the move that followed it, in the direction
 the scanner picked. Positive means the market kept going our way,
@@ -86,8 +86,8 @@ Sorted by average, but read it in time order too. The strongest timing lever in 
 
 | Horizon | Samples | Avg move | Moved our way |
 |---|---|---|---|
-| p_1h (alerted only) | 96 | +1.24c | 55% |
-| p_6h (alerted only) | 85 | +2.97c | 53% |
+| p_1h (alerted only) | 97 | +1.23c | 55% |
+| p_6h (alerted only) | 88 | +2.95c | 54% |
 | p_24h (alerted only) | 65 | +1.25c | 48% |
 
 ## How to act on this
