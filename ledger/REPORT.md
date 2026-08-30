@@ -1,6 +1,6 @@
 # Tipoff: sim-trading report
 
-_Auto-generated 2026-08-30T01:12:24Z. 515 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
+_Auto-generated 2026-08-30T08:14:40Z. 515 alerts ledgered (172 from calibration week, excluded from the verdict stats below).
 
 CLV = final observed price for our side minus entry price, in probability
 points. Positive CLV means the market kept moving our way after the alert.
@@ -10,13 +10,13 @@ A category is only called FOLLOWABLE with >= 20 graded alerts, avg CLV
 | Category | Alerts | Open | Graded | Win% | Avg ROI | Avg CLV | Verdict |
 |---|---|---|---|---|---|---|---|
 | entertainment | 11 | 0 | 11 | 45% | -2.9% | +4.1c | INSUFFICIENT DATA |
-| politics | 71 | 20 | 51 | 41% | -27.4% | -8.4c | NOT FOLLOWABLE: following is late money |
+| politics | 71 | 19 | 52 | 42% | -24.3% | -7.2c | NOT FOLLOWABLE: following is late money |
 | sports | 4 | 0 | 4 | 50% | -6.1% | +20.0c | INSUFFICIENT DATA |
 | crypto | 92 | 30 | 62 | 60% | +90.4% | +12.4c | FOLLOWABLE |
-| other | 165 | 57 | 108 | 56% | +53.0% | +8.2c | FOLLOWABLE |
-| ALL | 343 | 107 | 236 | 53% | +41.8% | +5.7c | FOLLOWABLE |
+| other | 165 | 56 | 109 | 56% | +51.6% | +8.1c | FOLLOWABLE |
+| ALL | 343 | 105 | 238 | 53% | +41.6% | +5.9c | FOLLOWABLE |
 
-**Informed-flow reads** (was the alert actually informed money, judged by where the line went): 122 informed-like · 1 early-but-wrong (real signal, unlucky outcome) · 106 late-money · 7 neutral
+**Informed-flow reads** (was the alert actually informed money, judged by where the line went): 123 informed-like · 1 early-but-wrong (real signal, unlucky outcome) · 106 late-money · 8 neutral
 
 ## By trigger
 
@@ -26,11 +26,11 @@ fade or drop, whatever its win rate says.
 
 | Trigger | Graded | Win% | Avg ROI | Avg CLV | Verdict |
 |---|---|---|---|---|---|
-| large_trade | 197 | 53% | +43.7% | +6.8c | FOLLOWABLE |
+| large_trade | 199 | 53% | +43.4% | +7.0c | FOLLOWABLE |
 | volume_spike | 197 | 53% | +47.3% | +6.5c | FOLLOWABLE |
-| repeat_actor | 164 | 54% | +40.9% | +6.2c | FOLLOWABLE |
-| price_jump | 131 | 53% | +20.4% | +1.4c | MARGINAL: edge exists but thin |
-| within_trader | 70 | 49% | +9.8% | +3.2c | FOLLOWABLE |
+| repeat_actor | 165 | 53% | +40.0% | +6.2c | FOLLOWABLE |
+| price_jump | 133 | 53% | +20.3% | +1.8c | MARGINAL: edge exists but thin |
+| within_trader | 72 | 49% | +10.0% | +3.9c | FOLLOWABLE |
 | no_public_news | 70 | 60% | +54.0% | +12.8c | FOLLOWABLE |
 | insiderable | 23 | 30% | -44.8% | -11.2c | NOT FOLLOWABLE: following is late money |
 | thin_market | 13 | 54% | +8.0% | -0.8c | INSUFFICIENT DATA |
