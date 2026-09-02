@@ -5,7 +5,7 @@ footprints, alerts on Telegram when a signal is still followable, and tracks
 every alert against real prices so the data (not vibes) decides whether any
 market niche is worth following.**
 
-Runs entirely on GitHub Actions (hourly cron, no server, laptop off). It never
+Runs on a credential-free user-systemd timer on `may-bridge` (laptop off). It never
 places an order.
 
 ## Honest framing: read this first
@@ -257,7 +257,7 @@ be a publishable finding, and exactly what this tool is for.
 
 ### Requirements
 
-- Python 3.12 (matches the GitHub Actions runner in `.github/workflows/tipoff.yml`)
+- Python 3.12 (matches the deployed `may-bridge` runtime)
 - one dependency: `requests` (see [requirements.txt](requirements.txt))
 - no API keys needed to run the scanner: Telegram is the only optional secret (see below)
 
@@ -275,11 +275,21 @@ python tipoff.py                # one scan cycle
 With `TIPOFF_DRY_RUN=1` (default in `.env.example`), alerts are printed
 instead of sent.
 
-### On GitHub Actions
+### Scheduler authority
 
-[.github/workflows/tipoff.yml](.github/workflows/tipoff.yml) runs the scanner
-on the volume-matched schedule below and commits the updated `state/` +
-`ledger/` back to the repo, so the repo itself is the database.
+The primary scheduler is the credential-free `tipoff-local-scan.timer` on
+`may-bridge`. It runs the volume-matched clock below, never backfills a missed
+slot, refuses manual service starts, and atomically mirrors the heartbeat plus
+ledger into May after a successful natural scan.
+
+[.github/workflows/tipoff.yml](.github/workflows/tipoff.yml) keeps the same
+clock as an explicit fallback, but scheduled jobs are inert unless the owner
+sets the repository variable `TIPOFF_PRIMARY_SCHEDULER=github`. Manual runs
+default to `verify-only`, which runs the test suite with read-only repository
+permission and does not run the scanner, load alert secrets, or write state.
+The `authorized-scan` option also remains inert unless that same repository
+variable names GitHub as primary. This prevents the bridge and GitHub from
+advancing divergent ledgers at the same time.
 
 ## Scan cadence: measured, not guessed
 
@@ -295,9 +305,7 @@ dominates.
 | 13:00-06:59 (US morning → late night) | **~89%** | hourly (`37 0-6,13-23 * * *`) |
 | 07:00-12:59 (~3-9am ET dead zone) | ~11% (<2%/hour) | touch-runs at 08:37 + 11:37 |
 
-That's **20 runs/day ≈ 620/month ≈ 700-1,300 billed minutes** (runs bill
-1-2 min each), comfortably inside the 1,800 budget with headroom for cron
-jitter and other repos. The dead-zone gaps never exceed 3h, so the
+That's **20 runs/day ≈ 620/month**. The dead-zone gaps never exceed 3h, so the
 price-jump detector (window ≤ 3.5h) stays live around the clock: a jump at
 4am ET is caught by the 08:37 run, usually still inside the catchable gate
 because nothing else is trading either.
@@ -309,14 +317,14 @@ a hunch. The calibration-week watch log records exactly how often signals
 die at the catchable gate during those hours, if that number turns out
 big, add `- cron: "37 0-3,21-23 * * *"` to the schedule and it's done.
 
-Setup:
+The deployed bridge service receives no GitHub, Telegram, exchange, broker,
+or workflow credentials. Its writable paths are limited to Tipoff's local
+state, ledger, research outputs, and May's Tipoff mirror directory.
 
-1. Push this repo to GitHub as a **private** repository.
-2. Add the secrets (below).
-3. Actions tab → *Tipoff scanner* → *Run workflow* to test immediately;
-   the hourly cron takes over from there.
+## GitHub fallback minutes guard
 
-## Minutes guard + self-throttling
+This section applies only if the owner explicitly restores GitHub as the
+primary scheduler. It is dormant while `may-bridge` is authoritative.
 
 Running out of Actions minutes is the one failure the daily ping can't warn
 about:
@@ -343,22 +351,15 @@ audits the month's usage and acts before the tank is empty:
   (`⛽ 412/1,800 Actions min (23%) · hourly`), and the skip cadence is
   anchored so the ping-hour run always executes.
 
-To enable true self-modification, create a **fine-grained PAT**: GitHub →
-Settings → Developer settings → Fine-grained tokens → generate one scoped to
-**only the tipoff repo** with repository permissions **Contents: read/write**
-and **Workflows: read/write**, then add it as the `WORKFLOW_EDIT_TOKEN`
-Actions secret. Optional but recommended.
-
 ### Secrets
 
 | Secret | Required | What it is |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | yes | from [@BotFather](https://t.me/BotFather) → `/newbot` |
-| `TELEGRAM_CHAT_ID` | yes | your chat's id: DM the bot once, then check `https://api.telegram.org/bot<TOKEN>/getUpdates` |
+| `TELEGRAM_BOT_TOKEN` | optional | alert delivery for an explicitly authorized GitHub/manual run |
+| `TELEGRAM_CHAT_ID` | optional | destination for an explicitly authorized GitHub/manual run |
 | `WORKFLOW_EDIT_TOKEN` | optional | fine-grained PAT (this repo only; Contents + Workflows read/write) that lets Tipoff rewrite its own cron when minutes run low |
 
-Add them in GitHub → repo → **Settings → Secrets and variables → Actions →
-New repository secret**. No other API keys are needed: all market-data
+No secret is required for the deployed bridge scanner: all market-data
 endpoints used are public and unauthenticated.
 
 **Never** put keys in code or commits. Locally they live in `.env`
@@ -371,7 +372,7 @@ workflow environment.
 tipoff.py                    the scanner: one invocation = one cycle
 config.py                    ALL thresholds, commented: the only file to tune
 tests/                       signal, gate, dedup, telegram, ledger/CLV tests
-.github/workflows/tipoff.yml hourly cron + ledger commit-back
+.github/workflows/tipoff.yml guarded manual/fallback scheduler
 state/baselines.json         per-market EWMA baselines (bot-committed)
 ledger/ledger.csv            every alert, graded on resolution
 ledger/watch_log.csv         signals that fired but were filtered, with reasons

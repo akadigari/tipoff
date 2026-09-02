@@ -166,6 +166,33 @@ def test_set_cron_cadence_matches_real_workflow_file():
     assert "Run scanner" in slowed  # rest of the file untouched
 
 
+def test_scheduled_github_runs_are_inert_without_explicit_authority():
+    from pathlib import Path
+    real = (Path(__file__).resolve().parent.parent
+            / ".github" / "workflows" / "tipoff.yml").read_text()
+
+    assert "vars.TIPOFF_PRIMARY_SCHEDULER == 'github'" in real
+    assert "github.event_name == 'schedule'" in real
+    assert "inputs.mode == 'authorized-scan'" in real
+    assert "default: verify-only" in real
+    assert "- verify-only" in real
+    assert "- authorized-scan" in real
+
+
+def test_manual_maintenance_mode_runs_tests_without_scanning_or_write_access():
+    from pathlib import Path
+    real = (Path(__file__).resolve().parent.parent
+            / ".github" / "workflows" / "tipoff.yml").read_text()
+
+    verify = real.split("  verify:", 1)[1]
+    verify = verify.split("  scan:", 1)[0]
+    assert "inputs.mode == 'verify-only'" in verify
+    assert "contents: read" in verify
+    assert "python -m pytest -q" in verify
+    assert "python tipoff.py" not in verify
+    assert "TELEGRAM_BOT_TOKEN" not in verify
+
+
 # --- alert wording ------------------------------------------------------------------
 
 def test_budget_alert_cron_mode():

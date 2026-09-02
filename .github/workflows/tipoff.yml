@@ -12,7 +12,16 @@ on:
   schedule:
     - cron: "37 0-6,13-23 * * *"
     - cron: "37 8,11 * * *"
-  workflow_dispatch: {}   # manual "Run workflow" button for testing
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Verify only, or scan after GitHub becomes primary"
+        required: true
+        default: verify-only
+        type: choice
+        options:
+          - verify-only
+          - authorized-scan
 
 permissions:
   contents: write         # the run commits the updated ledger/state back
@@ -23,7 +32,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'verify-only'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Verify without scanning
+        run: python -m pytest -q
+
   scan:
+    # may-bridge is the primary natural scheduler. Scheduled GitHub runs stay
+    # inert unless the owner explicitly restores GitHub as the authority.
+    # Manual verify-only runs cannot scan or write repository state.
+    if: >-
+      vars.TIPOFF_PRIMARY_SCHEDULER == 'github' &&
+      (github.event_name == 'schedule' || inputs.mode == 'authorized-scan')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
