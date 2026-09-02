@@ -1322,10 +1322,10 @@ WORKFLOW_PATH = ".github/workflows/tipoff.yml"
 # two touch-runs across the 07-12 UTC dead zone. 20 runs/day. Throttled
 # tiers fall back to plain every-Nh crons.
 CADENCE_CRONS = {
-    1: ["7 0-6,13-23 * * *", "7 8,11 * * *"],
-    2: ["7 */2 * * *"],
-    3: ["7 */3 * * *"],
-    6: ["7 */6 * * *"],
+    1: ["37 0-6,13-23 * * *", "37 8,11 * * *"],
+    2: ["37 */2 * * *"],
+    3: ["37 */3 * * *"],
+    6: ["37 */6 * * *"],
 }
 CADENCE_NAME = {1: "volume-matched schedule", 2: "every 2h",
                 3: "every 3h", 6: "every 6h"}

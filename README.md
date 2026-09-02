@@ -292,14 +292,14 @@ dominates.
 
 | UTC window | Share of traded volume | Cadence |
 |---|---|---|
-| 13:00-06:59 (US morning → late night) | **~89%** | hourly (`7 0-6,13-23 * * *`) |
-| 07:00-12:59 (~3-9am ET dead zone) | ~11% (<2%/hour) | touch-runs at 08:07 + 11:07 |
+| 13:00-06:59 (US morning → late night) | **~89%** | hourly (`37 0-6,13-23 * * *`) |
+| 07:00-12:59 (~3-9am ET dead zone) | ~11% (<2%/hour) | touch-runs at 08:37 + 11:37 |
 
 That's **20 runs/day ≈ 620/month ≈ 700-1,300 billed minutes** (runs bill
 1-2 min each), comfortably inside the 1,800 budget with headroom for cron
 jitter and other repos. The dead-zone gaps never exceed 3h, so the
 price-jump detector (window ≤ 3.5h) stays live around the clock: a jump at
-4am ET is caught by the 08:07 run, usually still inside the catchable gate
+4am ET is caught by the 08:37 run, usually still inside the catchable gate
 because nothing else is trading either.
 
 Deliberately NOT implemented yet: 30-minute scanning during the hottest

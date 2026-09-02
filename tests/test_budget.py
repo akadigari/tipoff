@@ -117,8 +117,8 @@ def test_skip_n6_runs_four_times_a_day():
 
 WORKFLOW_SNIPPET = '''on:
   schedule:
-    - cron: "7 0-6,13-23 * * *"
-    - cron: "7 8,11 * * *"
+    - cron: "37 0-6,13-23 * * *"
+    - cron: "37 8,11 * * *"
   workflow_dispatch: {}   # manual button
 
 permissions:
@@ -129,7 +129,7 @@ permissions:
 def test_set_cron_cadence_replaces_whole_schedule_block():
     out = set_cron_cadence(WORKFLOW_SNIPPET, 2)
     assert out.count("- cron:") == 1
-    assert '- cron: "7 */2 * * *"' in out
+    assert '- cron: "37 */2 * * *"' in out
     assert "workflow_dispatch" in out and "permissions:" in out
 
 
@@ -138,7 +138,12 @@ def test_set_cron_cadence_drops_comments_inside_block():
         'schedule:\n', 'schedule:\n    # some note\n')
     out = set_cron_cadence(text, 3)
     assert "some note" not in out
-    assert '- cron: "7 */3 * * *"' in out
+    assert '- cron: "37 */3 * * *"' in out
+
+
+def test_all_cadences_avoid_the_high_load_start_of_hour_window():
+    for crons in CADENCE_CRONS.values():
+        assert all(cron.startswith("37 ") for cron in crons)
 
 
 def test_set_cron_cadence_roundtrip_restores_full_schedule():
